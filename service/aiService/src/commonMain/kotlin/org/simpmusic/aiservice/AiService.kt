@@ -25,6 +25,7 @@ class AiService(
         Json {
             ignoreUnknownKeys = true
             isLenient = true
+            explicitNulls = false
         }
     private val openAI: OpenAI by lazy {
         when (aiHost) {
@@ -94,50 +95,45 @@ class AiService(
             buildJsonObject {
                 put("type", "object")
                 putJsonObject("properties") {
-                    putJsonObject("lyrics") {
-                        put("type", "object")
-                        putJsonObject("properties") {
-                            putJsonObject("lines") {
-                                put("type", "array")
-                                putJsonObject("items") {
-                                    put("type", "object")
-                                    putJsonObject("properties") {
-                                        putJsonObject("startTimeMs") {
-                                            put("type", "string")
-                                        }
-                                        putJsonObject("endTimeMs") {
-                                            put("type", "string")
-                                        }
-                                        putJsonObject("syllables") {
-                                            put("type", "array")
-                                            putJsonObject("items") {
-                                                put("type", "string")
-                                            }
-                                        }
-                                        putJsonObject("words") {
-                                            put("type", "string")
-                                        }
-                                    }
-                                    putJsonArray("required") {
-                                        add("startTimeMs")
-                                        add("endTimeMs")
-                                        add("words")
-                                        // `syllables` is optional if it's nullable
+                    putJsonObject("lines") {
+                        put("type", "array")
+                        putJsonObject("items") {
+                            put("type", "object")
+                            putJsonObject("properties") {
+                                putJsonObject("startTimeMs") {
+                                    put("type", "string")
+                                }
+                                putJsonObject("endTimeMs") {
+                                    put("type", "string")
+                                }
+                                putJsonObject("syllables") {
+                                    put("type", "array")
+                                    putJsonObject("items") {
+                                        put("type", "string")
                                     }
                                 }
+                                putJsonObject("words") {
+                                    put("type", "string")
+                                }
                             }
-                            putJsonObject("syncType") {
-                                put("type", "string")
+                            putJsonArray("required") {
+                                add("startTimeMs")
+                                add("endTimeMs")
+                                add("words")
                             }
                         }
-                        putJsonArray("required") {
-                            add("lines")
-                            add("syncType")
-                        }
+                    }
+                    putJsonObject("syncType") {
+                        put("type", "string")
+                    }
+                    putJsonObject("error") {
+                        put("type", "boolean")
                     }
                 }
                 putJsonArray("required") {
-                    add("lyrics")
+                    add("lines")
+                    add("syncType")
+                    add("error")
                 }
             }
         private val aiResponseJsonSchema =

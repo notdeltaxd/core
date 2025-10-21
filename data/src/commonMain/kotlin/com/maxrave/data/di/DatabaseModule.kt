@@ -23,10 +23,14 @@ import kotlin.time.ExperimentalTime
 @OptIn(ExperimentalTime::class)
 val databaseModule =
     module {
+        single(createdAtStart = true) {
+            Converters()
+        }
         // Database
         single(createdAtStart = true) {
-            getDatabaseBuilder()
-                .addTypeConverter(Converters())
+            getDatabaseBuilder(
+                get<Converters>()
+            )
                 .setDriver(BundledSQLiteDriver())
                 .setQueryCoroutineContext(Dispatchers.IO)
                 .build()

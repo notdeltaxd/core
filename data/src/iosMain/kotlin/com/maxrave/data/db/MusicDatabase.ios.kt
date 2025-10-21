@@ -8,11 +8,11 @@ import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
 
-actual fun getDatabaseBuilder(): RoomDatabase.Builder<MusicDatabase> {
+actual fun getDatabaseBuilder(converters: Converters): RoomDatabase.Builder<MusicDatabase> {
     val dbFilePath = documentDirectory() + "/$DB_NAME"
     return Room.databaseBuilder<MusicDatabase>(
         name = dbFilePath,
-    )
+    ).addTypeConverter(converters)
 }
 
 @OptIn(ExperimentalForeignApi::class)

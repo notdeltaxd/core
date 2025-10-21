@@ -13,7 +13,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 @ProvidedTypeConverter
-internal class Converters {
+class Converters {
     // Json serialization for Room
     val json =
         Json {

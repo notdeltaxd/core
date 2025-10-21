@@ -11,9 +11,9 @@ import androidx.sqlite.execSQL
     tableName = "format",
 )
 internal class AutoMigration7_8 : AutoMigrationSpec {
-    override fun onPostMigrate(db: SQLiteConnection) {
-        super.onPostMigrate(db)
-        db.execSQL("DROP TABLE IF EXISTS `format`")
+    override fun onPostMigrate(connection: SQLiteConnection) {
+        super.onPostMigrate(connection)
+        connection.execSQL("DROP TABLE IF EXISTS `format`")
     }
 }
 

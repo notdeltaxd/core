@@ -64,6 +64,6 @@ abstract class MusicDatabase : RoomDatabase() {
     abstract fun getDatabaseDao(): DatabaseDao
 }
 
-expect fun getDatabaseBuilder(): RoomDatabase.Builder<MusicDatabase>
+expect fun getDatabaseBuilder(converters: Converters): RoomDatabase.Builder<MusicDatabase>
 
 expect fun getDatabasePath(): String

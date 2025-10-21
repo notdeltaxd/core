@@ -4,9 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Lyrics(
-    val error: Boolean,
+    val error: Boolean = false,
     val lines: List<Line>?,
     val syncType: String?,
-    val captchaRequired: Boolean = false,
     val simpMusicLyricsId: String? = null,
 )

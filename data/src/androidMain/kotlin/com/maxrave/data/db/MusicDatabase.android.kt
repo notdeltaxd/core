@@ -17,7 +17,7 @@ import org.koin.mp.KoinPlatform.getKoin
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
-actual fun getDatabaseBuilder() : RoomDatabase.Builder<MusicDatabase> {
+actual fun getDatabaseBuilder(converters: Converters) : RoomDatabase.Builder<MusicDatabase> {
     val json =
         Json {
             ignoreUnknownKeys = true
@@ -26,7 +26,7 @@ actual fun getDatabaseBuilder() : RoomDatabase.Builder<MusicDatabase> {
         }
     return Room
         .databaseBuilder(getKoin().get(), MusicDatabase::class.java, DB_NAME)
-        .addTypeConverter(Converters())
+        .addTypeConverter(converters)
         .addMigrations(
             object : Migration(5, 6) {
                 override fun migrate(connection: SQLiteConnection) {
