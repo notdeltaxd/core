@@ -2014,37 +2014,40 @@ class YouTube {
     ): Flow<DownloadProgress> =
         channelFlow {
             // Video if videoId is not null
-            trySend(DownloadProgress(0.00001f))
+            trySend(DownloadProgress(0.01f))
             player(videoId = videoId, shouldYtdlp = shouldYtdlp)
                 .onSuccess { playerResponse ->
                     val audioFormat =
                         listOf(
                             playerResponse.second.streamingData
                                 ?.formats
-                                ?.filter { it.isAudio }
+                                ?.filter { it.isAudio && it.url != null }
                                 ?.maxByOrNull { it.bitrate },
                             playerResponse.second.streamingData
                                 ?.adaptiveFormats
-                                ?.filter { it.isAudio }
+                                ?.filter { it.isAudio && it.url != null }
                                 ?.maxByOrNull { it.bitrate },
                         ).maxByOrNull { it?.bitrate ?: 0 }
                     val videoFormat =
                         listOf(
                             playerResponse.second.streamingData
                                 ?.formats
-                                ?.filter { !it.isAudio }
+                                ?.filter { !it.isAudio && it.url != null }
                                 ?.maxByOrNull { it.bitrate },
                             playerResponse.second.streamingData
                                 ?.adaptiveFormats
-                                ?.filter { !it.isAudio }
+                                ?.filter { !it.isAudio && it.url != null }
                                 ?.maxByOrNull { it.bitrate },
                         ).maxByOrNull { it?.bitrate ?: 0 }
                     Logger.d(TAG, "Audio Format $audioFormat")
                     Logger.d(TAG, "Video Format $videoFormat")
-                    val audioUrl = audioFormat?.url ?: return@channelFlow
-                    val videoUrl = videoFormat?.url ?: return@channelFlow
+                    val audioUrl = audioFormat?.url ?: run {
+                        trySend(DownloadProgress.failed("Audio format url is null"))
+                        return@channelFlow
+                    }
                     if (isVideo) {
                         runCatching {
+                            val videoUrl = videoFormat?.url ?: throw Exception("Video format url is null")
                             val downloadAudioJob = ytMusic.download(audioUrl, ("$filePath.webm"))
                             val downloadVideoJob = ytMusic.download(videoUrl, ("$filePath.mp4"))
                             combine(downloadVideoJob, downloadAudioJob) { videoProgress, audioProgress ->
