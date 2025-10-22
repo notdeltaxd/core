@@ -6,7 +6,6 @@ import com.maxrave.kotlinytmusicscraper.models.Context
 import com.maxrave.kotlinytmusicscraper.models.SongItem
 import com.maxrave.kotlinytmusicscraper.models.WatchEndpoint
 import com.maxrave.kotlinytmusicscraper.models.YouTubeClient
-import com.maxrave.kotlinytmusicscraper.models.YouTubeClient.Companion.ANDROID_MUSIC
 import com.maxrave.kotlinytmusicscraper.models.YouTubeClient.Companion.IOS
 import com.maxrave.kotlinytmusicscraper.models.YouTubeClient.Companion.TVHTML5
 import com.maxrave.kotlinytmusicscraper.models.YouTubeClient.Companion.WEB_REMIX
@@ -194,8 +193,8 @@ class Ytmusic {
             append("X-Goog-Api-Format-Version", "1")
             append("X-YouTube-Client-Name", "${client.xClientName ?: 1}")
             append("X-YouTube-Client-Version", client.clientVersion)
+            append("X-Goog-Authuser", "0")
             pageId?.let {
-                append("X-Goog-Authuser", "0")
                 append("X-Goog-Pageid", it)
             }
             append("x-origin", "https://music.youtube.com")
@@ -403,7 +402,6 @@ class Ytmusic {
         videoId: String,
         playlistId: String?,
         cpn: String?,
-        poToken: String? = null,
         signatureTimestamp: Int? = null,
     ) = httpClient.post("player") {
         ytClient(client, setLogin = true)
@@ -432,14 +430,14 @@ class Ytmusic {
                                 signatureTimestamp = signatureTimestamp ?: 20073,
                             ),
                     ),
-                serviceIntegrityDimensions =
-                    if (poToken != null) {
-                        PlayerBody.ServiceIntegrityDimensions(
-                            poToken = poToken,
-                        )
-                    } else {
-                        null
-                    },
+//                serviceIntegrityDimensions =
+//                    if (poToken != null) {
+//                        PlayerBody.ServiceIntegrityDimensions(
+//                            poToken = poToken,
+//                        )
+//                    } else {
+//                        null
+//                    },
             ),
         )
     }
@@ -755,15 +753,20 @@ class Ytmusic {
             }
         }
 
+    @OptIn(ExperimentalTime::class)
     suspend fun initPlayback(
         url: String,
         cpn: String,
         customParams: Map<String, String>? = null,
         playlistId: String?,
     ) = httpClient.get(url) {
-        ytClient(ANDROID_MUSIC, true)
+        ytClient(WEB_REMIX, true)
+        headers {
+            append("X-Goog-Event-Time", now().toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds().toString())
+            append("X-Goog-Request-Time", now().toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds().toString())
+        }
         parameter("ver", "2")
-        parameter("c", "ANDROID_MUSIC")
+        parameter("c", "WEB_REMIX")
         parameter("cpn", cpn)
         customParams?.forEach { (key, value) ->
             parameter(key, value)
@@ -774,14 +777,18 @@ class Ytmusic {
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     suspend fun atr(
         url: String,
         cpn: String,
         customParams: Map<String, String>? = null,
         playlistId: String?,
     ) = httpClient.post(url) {
-        ytClient(ANDROID_MUSIC, true)
-        parameter("c", "ANDROID_MUSIC")
+        ytClient(WEB_REMIX, true)
+        headers {
+            append("X-Goog-Event-Time", now().toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds().toString())
+            append("X-Goog-Request-Time", now().toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds().toString())
+        }
         parameter("cpn", cpn)
         customParams?.forEach { (key, value) ->
             parameter(key, value)

@@ -1,5 +1,6 @@
 package com.maxrave.kotlinytmusicscraper
 
+import com.eygraber.uri.toKmpUri
 import com.maxrave.kotlinytmusicscraper.YouTube.Companion.DEFAULT_VISITOR_DATA
 import com.maxrave.kotlinytmusicscraper.extension.toListFormat
 import com.maxrave.kotlinytmusicscraper.models.AccountInfo
@@ -89,6 +90,10 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.daysUntil
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
@@ -1408,8 +1413,66 @@ class YouTube {
                             videoId,
                             playlistId,
                             cpn,
-                            poTokenObject.first,
+                            signatureTimestamp =
+                                run {
+                                    val today = Clock.System.todayIn(TimeZone.UTC)
+                                    val epoch =
+                                        kotlin.time.Instant
+                                            .fromEpochSeconds(0)
+                                            .toLocalDateTime(TimeZone.UTC)
+                                            .date
+                                    epoch.daysUntil(today)
+                                },
                         ).body<PlayerResponse>()
+                        .let {
+                            val fexp =
+                                it.streamingData
+                                    ?.serverAbrStreamingUrl
+                                    ?.toKmpUri()
+                                    ?.getQueryParameter("fexp")
+                            val playbackTracking = it.playbackTracking
+                            it.copy(
+                                playbackTracking =
+                                    playbackTracking?.copy(
+                                        atrUrl =
+                                            playbackTracking.atrUrl?.copy(
+                                                playbackTracking.atrUrl.baseUrl
+                                                    ?.toKmpUri()
+                                                    ?.buildUpon()
+                                                    ?.apply {
+                                                        if (fexp != null) {
+                                                            appendQueryParameter("fexp", fexp)
+                                                        }
+                                                    }?.build()
+                                                    ?.toString(),
+                                            ),
+                                        videostatsPlaybackUrl =
+                                            playbackTracking.videostatsPlaybackUrl?.copy(
+                                                playbackTracking.videostatsPlaybackUrl.baseUrl
+                                                    ?.toKmpUri()
+                                                    ?.buildUpon()
+                                                    ?.apply {
+                                                        if (fexp != null) {
+                                                            appendQueryParameter("fexp", fexp)
+                                                        }
+                                                    }?.build()
+                                                    ?.toString(),
+                                            ),
+                                        videostatsWatchtimeUrl =
+                                            playbackTracking.videostatsWatchtimeUrl?.copy(
+                                                playbackTracking.videostatsWatchtimeUrl.baseUrl
+                                                    ?.toKmpUri()
+                                                    ?.buildUpon()
+                                                    ?.apply {
+                                                        if (fexp != null) {
+                                                            appendQueryParameter("fexp", fexp)
+                                                        }
+                                                    }?.build()
+                                                    ?.toString(),
+                                            ),
+                                    ),
+                            )
+                        }
                 val response =
                     if (shouldYtdlp) {
                         ytDlpPlayer(videoId, tempRes)
@@ -2041,10 +2104,11 @@ class YouTube {
                         ).maxByOrNull { it?.bitrate ?: 0 }
                     Logger.d(TAG, "Audio Format $audioFormat")
                     Logger.d(TAG, "Video Format $videoFormat")
-                    val audioUrl = audioFormat?.url ?: run {
-                        trySend(DownloadProgress.failed("Audio format url is null"))
-                        return@channelFlow
-                    }
+                    val audioUrl =
+                        audioFormat?.url ?: run {
+                            trySend(DownloadProgress.failed("Audio format url is null"))
+                            return@channelFlow
+                        }
                     if (isVideo) {
                         runCatching {
                             val videoUrl = videoFormat?.url ?: throw Exception("Video format url is null")
