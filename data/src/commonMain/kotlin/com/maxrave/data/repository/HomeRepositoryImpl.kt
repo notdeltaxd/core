@@ -1,6 +1,10 @@
 package com.maxrave.data.repository
 
-import com.maxrave.data.parser.*
+import com.maxrave.data.parser.parseChart
+import com.maxrave.data.parser.parseGenreObject
+import com.maxrave.data.parser.parseMixedContent
+import com.maxrave.data.parser.parseMoodsMomentObject
+import com.maxrave.data.parser.parseNewRelease
 import com.maxrave.domain.data.model.home.HomeItem
 import com.maxrave.domain.data.model.home.chart.Chart
 import com.maxrave.domain.data.model.mood.Genre
@@ -14,6 +18,7 @@ import com.maxrave.domain.utils.Resource
 import com.maxrave.kotlinytmusicscraper.YouTube
 import com.maxrave.logger.Logger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -26,6 +31,7 @@ internal class HomeRepositoryImpl(
     override fun getHomeData(
         params: String?,
         viewString: String,
+        songString: String,
     ): Flow<Resource<List<HomeItem>>> =
         flow {
             runCatching {
@@ -130,7 +136,8 @@ internal class HomeRepositoryImpl(
                             parseMixedContent(
                                 data,
                                 viewString,
-                            )
+                                songString,
+                            ),
                         )
                         var count = 0
                         while (count < limit && continueParam != null) {
@@ -150,9 +157,10 @@ internal class HomeRepositoryImpl(
                                         response.continuationContents?.sectionListContinuation?.contents
                                     list.addAll(
                                         parseMixedContent(
-                                                dataContinue,
-                                                viewString,
-                                            )
+                                            dataContinue,
+                                            viewString,
+                                            songString,
+                                        ),
                                     )
                                     count++
                                     Logger.d("Repository", "count: $count")
@@ -171,7 +179,7 @@ internal class HomeRepositoryImpl(
 
     override fun getNewRelease(
         newReleaseString: String,
-        musicVideoString: String
+        musicVideoString: String,
     ): Flow<Resource<List<HomeItem>>> =
         flow {
             youTube

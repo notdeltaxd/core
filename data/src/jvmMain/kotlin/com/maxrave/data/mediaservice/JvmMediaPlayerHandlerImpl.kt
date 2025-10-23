@@ -614,8 +614,8 @@ class JvmMediaPlayerHandlerImpl(
             coroutineScope.launch {
                 while (true) {
                     delay(500)
-                    _simpleMediaState.value =
-                        SimpleMediaState.Loading(player.bufferedPercentage, player.duration)
+//                    _simpleMediaState.value =
+//                        SimpleMediaState.Loading(player.bufferedPercentage, player.duration)
                 }
             }
     }

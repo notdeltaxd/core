@@ -12,9 +12,13 @@ interface HomeRepository {
     fun getHomeData(
         params: String? = null,
         viewString: String,
+        songString: String,
     ): Flow<Resource<List<HomeItem>>>
 
-    fun getNewRelease(newReleaseString: String, musicVideoString: String): Flow<Resource<List<HomeItem>>>
+    fun getNewRelease(
+        newReleaseString: String,
+        musicVideoString: String,
+    ): Flow<Resource<List<HomeItem>>>
 
     fun getChartData(countryCode: String = "KR"): Flow<Resource<Chart>>
 

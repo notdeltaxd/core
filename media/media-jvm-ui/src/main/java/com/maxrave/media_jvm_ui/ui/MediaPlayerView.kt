@@ -61,7 +61,7 @@ fun MediaPlayerViewWithUrl(
     var gsVideoComponent by remember {
         mutableStateOf<GstVideoComponent?>(null)
     }
-    LaunchedEffect(url) {
+    DisposableEffect(url) {
         scope.launch(Dispatchers.Swing) {
             val gsv = GstVideoComponent()
             gsv.background = (java.awt.Color(0, 0, 0, 0))
@@ -80,6 +80,9 @@ fun MediaPlayerViewWithUrl(
             )
             playBin.setURI(URI(url))
             playBin.play()
+        }
+        onDispose {
+            gsVideoComponent = null
         }
     }
 

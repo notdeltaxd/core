@@ -21,7 +21,6 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.maxrave.common.MEDIA_CUSTOM_COMMAND
-import com.maxrave.media3.R
 import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.home.HomeItem
@@ -40,6 +39,7 @@ import com.maxrave.domain.utils.toPlaylistEntity
 import com.maxrave.domain.utils.toSongEntity
 import com.maxrave.domain.utils.toTrack
 import com.maxrave.logger.Logger
+import com.maxrave.media3.R
 import com.maxrave.media3.extension.toMediaItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -264,9 +264,13 @@ internal class SimpleMediaSessionCallback(
                             }
 
                     HOME -> {
-                        val temp = homeRepository.getHomeData(
-                            viewString = context.getString(R.string.view_count)
-                        ).lastOrNull()?.data
+                        val temp =
+                            homeRepository
+                                .getHomeData(
+                                    viewString = context.getString(R.string.view_count),
+                                    songString = context.getString(R.string.song),
+                                ).lastOrNull()
+                                ?.data
                         listHomeItem.clear()
                         listHomeItem.addAll(temp ?: emptyList())
                         temp?.map {

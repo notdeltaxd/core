@@ -68,7 +68,10 @@ data class RelatedPage(
             )
         }
 
-        fun fromMusicTwoRowItemRenderer(renderer: MusicTwoRowItemRenderer): YTItem? {
+        fun fromMusicTwoRowItemRenderer(
+            renderer: MusicTwoRowItemRenderer,
+            songString: String = "Song",
+        ): YTItem? {
             return when {
                 renderer.isSong ->
                     SongItem(
@@ -83,7 +86,7 @@ data class RelatedPage(
                                 ?.runs
                                 ?.splitBySeparator()
                                 ?.filterNot {
-                                    it.firstOrNull()?.text == "Song" &&
+                                    it.firstOrNull()?.text == songString &&
                                         it.firstOrNull()?.navigationEndpoint == null
                                 }?.firstOrNull()
                                 ?.oddElements()
@@ -98,6 +101,7 @@ data class RelatedPage(
                         thumbnail = renderer.thumbnailRenderer?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                         endpoint = renderer.navigationEndpoint.watchEndpoint,
                     )
+
                 renderer.isVideo ->
                     VideoItem(
                         id = renderer.navigationEndpoint?.watchEndpoint?.videoId ?: return null,
@@ -118,6 +122,7 @@ data class RelatedPage(
                         thumbnail = renderer.thumbnailRenderer?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                         endpoint = renderer.navigationEndpoint.watchEndpoint,
                     )
+
                 renderer.isAlbum ->
                     AlbumItem(
                         browseId =
