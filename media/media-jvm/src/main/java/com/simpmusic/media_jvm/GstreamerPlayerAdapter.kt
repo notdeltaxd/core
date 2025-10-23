@@ -798,7 +798,6 @@ class GstreamerPlayerAdapter(
                     }
                     session?.setMetadata(
                         MediaSessionMetadata(
-                            track_id = "/$videoId",
                             length_ms = 5000,
                             art_url = "${mediaItem.metadata.artworkUri}",
                             album = "${mediaItem.metadata.albumTitle}",
@@ -946,6 +945,7 @@ class GstreamerPlayerAdapter(
         val eosListener =
             Bus.EOS { _ ->
                 coroutineScope.launch {
+                    player.state = State.PAUSED
                     Logger.d(TAG, "End of stream reached")
                     transitionToState(InternalState.ENDED)
                     runBlocking { pause() }
