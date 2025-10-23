@@ -85,10 +85,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.json.Json
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import org.koin.mp.KoinPlatform.getKoin
 import kotlin.math.pow
 
@@ -1722,7 +1719,7 @@ internal class MediaServiceHandlerImpl(
                 is SongEntity -> anyTrack.toTrack()
                 else -> return
             }
-        if (track.isExplicit && runBlocking { dataStoreManager.explicitContentEnabled.first() } == FALSE) {
+        if (track.isExplicit && dataStoreManager.explicitContentEnabled.first() == FALSE) {
             showToast(ToastType.ExplicitContent)
             return
         }
