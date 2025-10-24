@@ -183,6 +183,10 @@ sealed class PlayerEvent {
     ) : PlayerEvent()
 
     data object ToggleLike : PlayerEvent()
+
+    data class UpdateVolume(
+        val newVolume: Float,
+    ) : PlayerEvent()
 }
 
 sealed class SimpleMediaState {
@@ -216,6 +220,7 @@ data class ControlState(
     val isNextAvailable: Boolean,
     val isPreviousAvailable: Boolean,
     val isCrossfading: Boolean,
+    val volume: Float, // 0f..1f
 )
 
 data class NowPlayingTrackState(

@@ -655,6 +655,7 @@ internal class MediaServiceHandlerImpl(
 
     override suspend fun onPlayerEvent(playerEvent: PlayerEvent) {
         when (playerEvent) {
+            is PlayerEvent.UpdateVolume -> {}
             PlayerEvent.Backward -> player.seekBack()
             PlayerEvent.Forward -> player.seekForward()
             PlayerEvent.PlayPause -> {

@@ -525,5 +525,32 @@ enum class LibraryChipType {
     LOCAL_PLAYLIST,
     FAVORITE_PLAYLIST,
     DOWNLOADED_PLAYLIST,
-    FAVORITE_PODCAST,
+    FAVORITE_PODCAST;
+
+    fun toStringValue(): String {
+        return when (this) {
+            YOUR_LIBRARY -> "your_library"
+            YOUTUBE_MUSIC_PLAYLIST -> "youtube_music_playlist"
+            YOUTUBE_MIX_FOR_YOU -> "youtube_mix_for_you"
+            LOCAL_PLAYLIST -> "local_playlist"
+            FAVORITE_PLAYLIST -> "favorite_playlist"
+            DOWNLOADED_PLAYLIST -> "downloaded_playlist"
+            FAVORITE_PODCAST -> "favorite_podcast"
+        }
+    }
+
+    companion object {
+        fun fromStringValue(value: String): LibraryChipType? {
+            return when (value) {
+                "your_library" -> YOUR_LIBRARY
+                "youtube_music_playlist" -> YOUTUBE_MUSIC_PLAYLIST
+                "youtube_mix_for_you" -> YOUTUBE_MIX_FOR_YOU
+                "local_playlist" -> LOCAL_PLAYLIST
+                "favorite_playlist" -> FAVORITE_PLAYLIST
+                "downloaded_playlist" -> DOWNLOADED_PLAYLIST
+                "favorite_podcast" -> FAVORITE_PODCAST
+                else -> null
+            }
+        }
+    }
 }

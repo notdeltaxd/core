@@ -28,4 +28,6 @@ interface MediaPlayerListener {
     fun onRepeatModeChanged(repeatMode: Int) {}
 
     fun onIsLoadingChanged(isLoading: Boolean) {}
+
+    fun onVolumeChanged(volume: Float) {}
 }

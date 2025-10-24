@@ -130,6 +130,7 @@ class JvmMediaPlayerHandlerImpl(
                 isNextAvailable = player.hasNextMediaItem(),
                 isPreviousAvailable = player.hasPreviousMediaItem(),
                 isCrossfading = false,
+                volume = player.volume,
             ),
         )
 
@@ -633,12 +634,15 @@ class JvmMediaPlayerHandlerImpl(
 
     override suspend fun onPlayerEvent(playerEvent: PlayerEvent) {
         when (playerEvent) {
+            is PlayerEvent.UpdateVolume -> {
+                player.volume = playerEvent.newVolume
+            }
             PlayerEvent.Backward -> player.seekBack()
             PlayerEvent.Forward -> player.seekForward()
             PlayerEvent.PlayPause -> {
                 if (player.isPlaying) {
-                    player.pause()
                     stopProgressUpdate()
+                    player.pause()
                 } else {
                     player.play()
                     startProgressUpdate()
@@ -1935,6 +1939,15 @@ class JvmMediaPlayerHandlerImpl(
             Logger.w("ServiceHandler", "Handler released successfully. Scope active: ${coroutineScope.isActive}")
         } catch (e: Exception) {
             Logger.e("ServiceHandler", "Error during release ${e.message}")
+        }
+    }
+
+    override fun onVolumeChanged(volume: Float) {
+        super.onVolumeChanged(volume)
+        _controlState.update {
+            it.copy(
+                volume = volume
+            )
         }
     }
 

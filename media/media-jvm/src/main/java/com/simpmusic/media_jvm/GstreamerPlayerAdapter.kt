@@ -220,6 +220,7 @@ class GstreamerPlayerAdapter(
     override fun pause() {
         Logger.d(TAG, "⏸️ pause() called (current state: $internalState, playWhenReady: $internalPlayWhenReady)")
         coroutineScope.launch {
+            currentPlayer?.pause()
             when (internalState) {
                 InternalState.PLAYING, InternalState.READY -> {
                     currentPlayer?.let { player ->
@@ -629,6 +630,7 @@ class GstreamerPlayerAdapter(
         set(value) {
             internalVolume = value.coerceIn(0f, 1f)
             currentPlayer?.setVolume(internalVolume.toDouble())
+            listeners.forEach { it.onVolumeChanged(internalVolume) }
         }
 
     override var skipSilenceEnabled: Boolean = false
@@ -916,8 +918,6 @@ class GstreamerPlayerAdapter(
 //            Logger.e(TAG, "Failed to disable video sink: ${e.message}", e)
 //        }
 
-        audioPlayer.volume = 1.0
-        videoPlayer?.volume = 0.0
         audioPlayer["mute"] = false
         videoPlayer?.let { vp -> vp["mute"] = true }
 
