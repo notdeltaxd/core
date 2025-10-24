@@ -137,6 +137,7 @@ internal class MediaServiceHandlerImpl(
                 isNextAvailable = player.hasNextMediaItem(),
                 isPreviousAvailable = player.hasPreviousMediaItem(),
                 isCrossfading = false,
+                volume = 1f
             ),
         )
 
