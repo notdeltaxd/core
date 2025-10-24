@@ -752,9 +752,10 @@ class GstreamerPlayerAdapter(
                     }
                     if (session == null) {
                         var time = TimeSource.Monotonic.markNow()
-                        session = MediaSession.create(
-                            getPositionMs = { time.elapsedNow().inWholeMilliseconds }
-                        )
+                        session =
+                            MediaSession.create(
+                                getPositionMs = { time.elapsedNow().inWholeMilliseconds },
+                            )
                         if (session == null) {
                             Logger.e(TAG, "Failed to create MediaSession")
                         }
@@ -791,10 +792,10 @@ class GstreamerPlayerAdapter(
                                 PlayerConstants.REPEAT_MODE_ONE -> MediaSessionLoopMode.ONE
                                 PlayerConstants.REPEAT_MODE_ALL -> MediaSessionLoopMode.ALL
                                 else -> MediaSessionLoopMode.NONE
-                            }
+                            },
                         )
                         session?.setShuffle(
-                            internalShuffleModeEnabled
+                            internalShuffleModeEnabled,
                         )
                         session?.setEnabled(true)
                     }
@@ -806,10 +807,11 @@ class GstreamerPlayerAdapter(
                             album_artists = listOf("${mediaItem.metadata.artist}"),
                             artist = mediaItem.metadata.artist,
                             title = mediaItem.metadata.title,
-                            custom_metadata = mapOf(
-                                "xesam:artist" to "[${mediaItem.metadata.artist}]",
-                            )
-                        )
+                            custom_metadata =
+                                mapOf(
+                                    "xesam:artist" to "[${mediaItem.metadata.artist}]",
+                                ),
+                        ),
                     )
                     // Use precached player if available
                     val cachedPlayer = precachedPlayers.remove(index)
@@ -1038,7 +1040,7 @@ class GstreamerPlayerAdapter(
             Bus.BUFFERING { _, percent ->
                 if (percent in 1..100) {
                     Logger.d(TAG, "Buffering: $percent%")
-                    cachedBufferedPosition = (duration * percent / 100).coerceIn(0, duration)
+                    cachedBufferedPosition = duration
                 }
             }
 

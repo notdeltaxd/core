@@ -17,6 +17,7 @@
     <string name="track">track(s)</string>
     <string name="download">Download</string>
     <string name="view_count">%1$s views</string>
+    <string name="song">Song</string>
     <plurals name="n_song">
         <item quantity="one">%d song</item>
         <item quantity="other">%d songs</item>

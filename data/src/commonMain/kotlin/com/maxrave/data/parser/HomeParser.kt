@@ -4,7 +4,15 @@ import com.maxrave.domain.data.model.home.Content
 import com.maxrave.domain.data.model.home.HomeItem
 import com.maxrave.domain.data.model.searchResult.songs.Album
 import com.maxrave.domain.data.model.searchResult.songs.Artist
-import com.maxrave.kotlinytmusicscraper.models.*
+import com.maxrave.kotlinytmusicscraper.models.ArtistItem
+import com.maxrave.kotlinytmusicscraper.models.MusicResponsiveListItemRenderer
+import com.maxrave.kotlinytmusicscraper.models.MusicTwoRowItemRenderer
+import com.maxrave.kotlinytmusicscraper.models.PlaylistItem
+import com.maxrave.kotlinytmusicscraper.models.Run
+import com.maxrave.kotlinytmusicscraper.models.SectionListRenderer
+import com.maxrave.kotlinytmusicscraper.models.SongItem
+import com.maxrave.kotlinytmusicscraper.models.Thumbnail
+import com.maxrave.kotlinytmusicscraper.models.VideoItem
 import com.maxrave.kotlinytmusicscraper.pages.ArtistPage
 import com.maxrave.kotlinytmusicscraper.pages.ExplorePage
 import com.maxrave.kotlinytmusicscraper.pages.RelatedPage
@@ -13,6 +21,7 @@ import com.maxrave.logger.Logger
 internal fun parseMixedContent(
     data: List<SectionListRenderer.Content>?,
     viewString: String,
+    songString: String,
 ): List<HomeItem> {
     val list = mutableListOf<HomeItem>()
     if (data != null) {
@@ -160,7 +169,7 @@ internal fun parseMixedContent(
 //                        }
                             if (musicTwoRowItemRenderer.isSong) {
                                 val ytItem =
-                                    RelatedPage.fromMusicTwoRowItemRenderer(musicTwoRowItemRenderer) as SongItem?
+                                    RelatedPage.fromMusicTwoRowItemRenderer(musicTwoRowItemRenderer, songString) as SongItem?
                                 val artists =
                                     ytItem
                                         ?.artists
@@ -503,7 +512,7 @@ internal fun parseMixedContent(
 
 internal fun parseSongFlat(
     data: MusicResponsiveListItemRenderer?,
-    viewString: String
+    viewString: String,
 ): Content? {
     if (data?.flexColumns != null) {
         val column =
@@ -595,7 +604,7 @@ internal fun parseSongFlat(
 internal fun parseSongArtists(
     data: MusicResponsiveListItemRenderer,
     index: Int,
-    viewString: String
+    viewString: String,
 ): List<Artist>? {
     val flexItem = getFlexColumnItem(data, index)
     return if (flexItem == null) {
@@ -623,7 +632,7 @@ fun getFlexColumnItem(
 
 internal fun parsePlaylist(
     data: MusicTwoRowItemRenderer,
-    viewString: String
+    viewString: String,
 ): Content {
     val subtitle = data.subtitle
     var description = ""
@@ -686,7 +695,7 @@ internal fun parsePlaylist(
 
 internal fun parseSongArtistsRuns(
     runs: List<Run>,
-    viewString: String
+    viewString: String,
 ): List<Artist> {
     val artists = mutableListOf<Artist>()
     for (i in 0..(runs.size / 2)) {
