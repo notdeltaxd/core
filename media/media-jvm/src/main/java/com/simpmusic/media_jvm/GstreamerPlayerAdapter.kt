@@ -190,6 +190,7 @@ class GstreamerPlayerAdapter(
                         Logger.d(TAG, "▶️ Play: Setting GStreamer state to PLAYING")
                         isTransitioning = true
                         player.setState(State.PLAYING)
+                        transitionToState(InternalState.PLAYING)
                         internalPlayWhenReady = true
                         // State change will be handled by stateChangedListener
                     } ?: Logger.w(TAG, "Play called but currentPlayer is null")
@@ -228,6 +229,7 @@ class GstreamerPlayerAdapter(
                         Logger.d(TAG, "⏸️ Pause: Setting GStreamer state to PAUSED")
                         isTransitioning = true
                         player.setState(State.PAUSED)
+                        transitionToState(InternalState.READY)
                         internalPlayWhenReady = false
                         // State change will be handled by stateChangedListener
                     }
@@ -848,7 +850,6 @@ class GstreamerPlayerAdapter(
 
                     // Set to PAUSED to load pipeline
                     player.setState(State.PAUSED)
-
 
                     // Seek if needed
                     if (startPositionMs > 0) {
