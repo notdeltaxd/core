@@ -164,7 +164,8 @@ class GstreamerPlayerAdapter(
         val url: Pair<String, String?>,
     )
 
-    private val precachedPlayers = ConcurrentHashMap<Int, PrecachedPlayer>()
+    // VideoId -> Player
+    private val precachedPlayers = ConcurrentHashMap<String, PrecachedPlayer>()
     private var precacheEnabled = true
     private val maxPrecacheCount = 2
     private var precacheJob: Job? = null
@@ -289,18 +290,19 @@ class GstreamerPlayerAdapter(
 
             // Load the new track
             localCurrentMediaItemIndex = mediaItemIndex
-            currentPlayer?.seek(0L, TimeUnit.MILLISECONDS)
+            currentPlayer?.pause()
+            currentPlayer = null
             loadAndPlayTrackInternal(mediaItemIndex, positionMs, shouldPlay)
         }
     }
 
     override fun seekBack() {
-        val newPosition = (cachedPosition - 10000).coerceAtLeast(0)
+        val newPosition = (cachedPosition - 5000).coerceAtLeast(0)
         seekTo(newPosition)
     }
 
     override fun seekForward() {
-        val newPosition = (cachedPosition + 10000).coerceAtMost(cachedDuration)
+        val newPosition = (cachedPosition + 5000).coerceAtMost(cachedDuration)
         seekTo(newPosition)
     }
 
@@ -380,10 +382,10 @@ class GstreamerPlayerAdapter(
         if (index !in playlist.indices) return
 
         coroutineScope.launch {
-            playlist.removeAt(index)
+            val track = playlist.removeAt(index)
 
             // Remove from precache
-            precachedPlayers.remove(index)?.let { cached ->
+            precachedPlayers.remove(track.mediaId)?.let { cached ->
                 cleanupPlayerInternal(cached.player)
             }
 
@@ -464,7 +466,7 @@ class GstreamerPlayerAdapter(
             playlist[index] = mediaItem
 
             // Remove from precache
-            precachedPlayers.remove(index)?.let { cached ->
+            precachedPlayers.remove(mediaItem.mediaId)?.let { cached ->
                 cleanupPlayerInternal(cached.player)
             }
 
@@ -628,6 +630,7 @@ class GstreamerPlayerAdapter(
     override var volume: Float
         get() = internalVolume
         set(value) {
+            Logger.w(TAG, "Setting volume to $value")
             internalVolume = value.coerceIn(0f, 1f)
             currentPlayer?.setVolume(internalVolume.toDouble())
             listeners.forEach { it.onVolumeChanged(internalVolume) }
@@ -696,6 +699,9 @@ class GstreamerPlayerAdapter(
                 if (internalPlayWhenReady) {
                     play()
                 } else {
+                    currentPlayer?.playerBin?.queryDuration(Format.TIME)?.let {
+                        cachedDuration = it
+                    }
                     listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_READY) }
                     listeners.forEach { it.onIsPlayingChanged(false) }
                 }
@@ -814,7 +820,7 @@ class GstreamerPlayerAdapter(
                         ),
                     )
                     // Use precached player if available
-                    val cachedPlayer = precachedPlayers.remove(index)
+                    val cachedPlayer = precachedPlayers.remove(videoId)
                     val player =
                         if (cachedPlayer?.player != null) {
                             cachedPlayer.player
@@ -839,14 +845,10 @@ class GstreamerPlayerAdapter(
 
                     // Apply settings
                     player.setVolume(internalVolume.toDouble())
-                    player.apply {
-                        playerBin["mute"] = false
-                    }
 
                     // Set to PAUSED to load pipeline
                     player.setState(State.PAUSED)
 
-                    transitionToState(InternalState.READY)
 
                     // Seek if needed
                     if (startPositionMs > 0) {
@@ -856,9 +858,13 @@ class GstreamerPlayerAdapter(
 
                     // Auto-play if requested
                     if (shouldPlay) {
+                        player.setState(State.READY)
+                        transitionToState(InternalState.READY)
                         player.setState(State.PLAYING)
+                        transitionToState(InternalState.PLAYING)
                     } else {
                         player.setState(State.READY)
+                        transitionToState(InternalState.READY)
                     }
 
                     // Start position updates
@@ -1221,7 +1227,7 @@ class GstreamerPlayerAdapter(
                             }
 
                         if (nextIndex != localCurrentMediaItemIndex &&
-                            !precachedPlayers.containsKey(nextIndex)
+                            !precachedPlayers.containsKey(playlist.getOrNull(nextIndex)?.mediaId)
                         ) {
                             indicesToPrecache.add(nextIndex)
                         }
@@ -1241,7 +1247,7 @@ class GstreamerPlayerAdapter(
                             try {
                                 val player = createMediaPlayerInternal(audioUri to videoUri)
                                 player.setState(State.READY)
-                                precachedPlayers[idx] = PrecachedPlayer(player, mediaItem, audioUri to videoUri)
+                                precachedPlayers[mediaItem.mediaId] = PrecachedPlayer(player, mediaItem, audioUri to videoUri)
                                 Logger.d(TAG, "Precached player for index $idx")
                             } catch (e: Exception) {
                                 Logger.e(TAG, "Precaching error for $idx: ${e.message}")
@@ -1271,8 +1277,8 @@ class GstreamerPlayerAdapter(
      */
     private fun clearPrecacheExceptCurrentInternal() {
         Logger.d(TAG, "Clearing precache")
-        precachedPlayers.entries.removeIf { (index, cached) ->
-            if (index != localCurrentMediaItemIndex) {
+        precachedPlayers.entries.removeIf { (videoId, cached) ->
+            if (videoId != currentMediaItem?.mediaId) {
                 cleanupPlayerInternal(cached.player)
                 true
             } else {

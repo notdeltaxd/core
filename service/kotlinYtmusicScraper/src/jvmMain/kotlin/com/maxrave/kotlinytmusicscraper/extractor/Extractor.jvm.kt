@@ -2,8 +2,12 @@ package com.maxrave.kotlinytmusicscraper.extractor
 
 import com.maxrave.kotlinytmusicscraper.models.SongItem
 import com.maxrave.kotlinytmusicscraper.models.response.DownloadProgress
+import com.maxrave.logger.Logger
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStreamReader
 
 actual class Extractor {
     private var newPipeDownloader = NewPipeDownloaderImpl(proxy = null)
@@ -13,6 +17,19 @@ actual class Extractor {
     }
 
     actual fun update() {
+        try {
+            val processBuilder = ProcessBuilder("yt-dlp", "--update-to", "master")
+            processBuilder.redirectErrorStream(true)
+            val process = processBuilder.start()
+            val input = BufferedReader(InputStreamReader(process.inputStream))
+            var line: String? = null
+            while ((input.readLine().also { line = it }) != null) {
+                Logger.w("Extractor", line ?: "No line")
+            }
+            process.waitFor()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     actual fun ytdlpGetStreamUrl(
@@ -20,7 +37,37 @@ actual class Extractor {
         poToken: String?,
         clientName: String,
         cookiePath: String?,
-    ): String? = null
+    ): String? {
+        val processBuilder = ProcessBuilder("yt-dlp")
+        if (cookiePath != null) {
+            processBuilder.command().add("--cookies")
+            processBuilder.command().add(cookiePath)
+        }
+        processBuilder.command().add("--extractor-args")
+        processBuilder.command().add("youtube:player_client=$clientName;youtube:webpage_skip;" +
+            if (clientName.contains("web") && poToken != null) "youtube:po_token=$clientName.gvs+$poToken;" else "")
+        processBuilder.command().add("--dump-json")
+        processBuilder.command().add("https://www.youtube.com/watch?v=$videoId")
+        processBuilder.redirectErrorStream(true)
+        val commandString = processBuilder.command().joinToString(" ")
+        Logger.w("Extractor", "Command: $commandString")
+        val process = processBuilder.start()
+        val input = BufferedReader(InputStreamReader(process.inputStream))
+        var line: String? = null
+        try {
+            var response: String = ""
+            while ((input.readLine().also { line = it }) != null) {
+                response += "\n" + line
+            }
+            val exitCode = process.waitFor()
+            Logger.w("Extractor", "yt-dlp exit code: $exitCode")
+            Logger.w("Extractor", "yt-dlp response: $response")
+            return response.split("\n").lastOrNull()
+        } catch (e: IOException) {
+            e.printStackTrace()
+            return null
+        }
+    }
 
     actual fun smartTubePlayer(videoId: String): List<Pair<Int, String>> = emptyList()
 

@@ -89,6 +89,11 @@ internal class CommonRepositoryImpl(
                 launch {
                     dataStoreManager.pageId.distinctUntilChanged().collectLatest { pageId ->
                         youTube.pageId = pageId.ifEmpty { null }
+                        Logger.d("YouTube", "New pageId")
+                        localDataSource.getUsedGoogleAccount()?.netscapeCookie?.let {
+                            writeTextToFile(it, cookiePath)
+                            Logger.w("YouTube", "Wrote cookie to file")
+                        }
                     }
                 }
             val usingProxy =

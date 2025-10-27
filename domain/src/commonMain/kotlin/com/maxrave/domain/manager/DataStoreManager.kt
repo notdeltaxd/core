@@ -112,6 +112,10 @@ interface DataStoreManager {
 
     suspend fun setWatchVideoInsteadOfPlayingAudio(watch: Boolean)
 
+    val playerVolume: Flow<Float>
+
+    suspend fun setPlayerVolume(volume: Float)
+
     val videoQuality: Flow<String>
 
     suspend fun setVideoQuality(quality: String)

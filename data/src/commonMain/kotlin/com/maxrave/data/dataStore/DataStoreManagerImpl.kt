@@ -455,6 +455,19 @@ internal class DataStoreManagerImpl(
         }
     }
 
+    override val playerVolume: Flow<Float> =
+        settingsDataStore.data.map { preferences ->
+            preferences[PLAYER_VOLUME] ?: 1.0f
+        }
+
+    override suspend fun setPlayerVolume(volume: Float) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[PLAYER_VOLUME] = volume.coerceIn(0f, 1f)
+            }
+        }
+    }
+
     override val videoQuality =
         settingsDataStore.data.map { preferences ->
             preferences[VIDEO_QUALITY] ?: "720p"
@@ -1141,6 +1154,7 @@ internal class DataStoreManagerImpl(
         val WATCH_VIDEO_INSTEAD_OF_PLAYING_AUDIO =
             stringPreferencesKey("watch_video_instead_of_playing_audio")
         val VIDEO_QUALITY = stringPreferencesKey("video_quality")
+        val PLAYER_VOLUME = floatPreferencesKey("player_volume")
         val SPDC = stringPreferencesKey("sp_dc")
         val SPOTIFY_LYRICS = stringPreferencesKey("spotify_lyrics")
         val SPOTIFY_CANVAS = stringPreferencesKey("spotify_canvas")

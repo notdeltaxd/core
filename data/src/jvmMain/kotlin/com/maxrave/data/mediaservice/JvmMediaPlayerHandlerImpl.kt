@@ -236,6 +236,7 @@ class JvmMediaPlayerHandlerImpl(
                     }
                 }
         }
+        player.volume = runBlocking { dataStoreManager.playerVolume.first() }
         mayBeRestoreQueue()
         coroutineScope.launch {
             val controlStateJob =
@@ -635,6 +636,7 @@ class JvmMediaPlayerHandlerImpl(
     override suspend fun onPlayerEvent(playerEvent: PlayerEvent) {
         when (playerEvent) {
             is PlayerEvent.UpdateVolume -> {
+                Logger.w(TAG, "onPlayerEvent: UpdateVolume ${playerEvent.newVolume}")
                 player.volume = playerEvent.newVolume
             }
             PlayerEvent.Backward -> player.seekBack()
@@ -1763,15 +1765,15 @@ class JvmMediaPlayerHandlerImpl(
     }
 
     override fun mayBeNormalizeVolume() {
-        runBlocking {
-            normalizeVolume = dataStoreManager.normalizeVolume.first() == TRUE
-        }
-        if (!normalizeVolume) {
-            // TODO: loudness enhancer
-            volumeNormalizationJob?.cancel()
-            player.volume = 1f
-            return
-        }
+//        runBlocking {
+//            normalizeVolume = dataStoreManager.normalizeVolume.first() == TRUE
+//        }
+//        if (!normalizeVolume) {
+//            // TODO: loudness enhancer
+//            volumeNormalizationJob?.cancel()
+//            player.volume = 1f
+//            return
+//        }
 //
 //        if (loudnessEnhancer == null && player.audioSessionId != PlayerConstants.AUDIO_SESSION_ID_UNSET) {
 //            try {
@@ -1782,58 +1784,58 @@ class JvmMediaPlayerHandlerImpl(
 //            }
 //        }
 
-        player.currentMediaItem?.mediaId?.let { songId ->
-            val videoId =
-                if (songId.contains("Video")) {
-                    songId.removePrefix("Video")
-                } else {
-                    songId
-                }
-            volumeNormalizationJob?.cancel()
-            volumeNormalizationJob =
-                coroutineScope.launch(Dispatchers.Main) {
-                    fun Float?.toMb() = ((this ?: 0f) * 100).toInt()
-                    streamRepository
-                        .getFormatFlow(videoId)
-                        .cancellable()
-                        .distinctUntilChanged()
-                        .collectLatest { format ->
-                            if (format != null) {
-                                val loudnessMb =
-                                    format.loudnessDb.toMb().let {
-                                        if (it !in -2000..2000) {
-                                            0
-                                        } else {
-                                            it
-                                        }
-                                    }
-                                Logger.d(TAG, "Loudness: ${format.loudnessDb} db, $loudnessMb")
-                                try {
+//        player.currentMediaItem?.mediaId?.let { songId ->
+//            val videoId =
+//                if (songId.contains("Video")) {
+//                    songId.removePrefix("Video")
+//                } else {
+//                    songId
+//                }
+//            volumeNormalizationJob?.cancel()
+//            volumeNormalizationJob =
+//                coroutineScope.launch(Dispatchers.Main) {
+//                    fun Float?.toMb() = ((this ?: 0f) * 100).toInt()
+//                    streamRepository
+//                        .getFormatFlow(videoId)
+//                        .cancellable()
+//                        .distinctUntilChanged()
+//                        .collectLatest { format ->
+//                            if (format != null) {
+//                                val loudnessMb =
+//                                    format.loudnessDb.toMb().let {
+//                                        if (it !in -2000..2000) {
+//                                            0
+//                                        } else {
+//                                            it
+//                                        }
+//                                    }
+//                                Logger.d(TAG, "Loudness: ${format.loudnessDb} db, $loudnessMb")
+//                                try {
 //                                    loudnessEnhancer?.setTargetGain(0f.toMb() - loudnessMb)
 //                                    loudnessEnhancer?.enabled = true
 //                                    Logger.w(
 //                                        TAG,
 //                                        "mayBeNormalizeVolume: ${loudnessEnhancer?.targetGain}",
 //                                    )
-                                } catch (e: Exception) {
-                                    Logger.e(TAG, "mayBeNormalizeVolume: ${e.message}")
-                                    e.printStackTrace()
-                                }
-                                try {
+//                                } catch (e: Exception) {
+//                                    Logger.e(TAG, "mayBeNormalizeVolume: ${e.message}")
+//                                    e.printStackTrace()
+//                                }
+//                                try {
 //                                    secondLoudnessEnhancer?.setTargetGain(0f.toMb() - loudnessMb)
 //                                    secondLoudnessEnhancer?.enabled = true
 //                                    Logger.w(
 //                                        TAG,
 //                                        "mayBeNormalizeVolume: ${secondLoudnessEnhancer?.targetGain}",
 //                                    )
-                                } catch (e: Exception) {
-                                    Logger.e(TAG, "mayBeNormalizeVolume: ${e.message}")
-                                    e.printStackTrace()
-                                }
-                            }
-                        }
-                }
-        }
+//                                } catch (e: Exception) {
+//                                    Logger.e(TAG, "mayBeNormalizeVolume: ${e.message}")
+//                                    e.printStackTrace()
+//                                }
+//                            }
+//                        }
+//                }
+//        }
     }
 
     override fun mayBeSavePlaybackState() {
