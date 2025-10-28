@@ -682,6 +682,10 @@ class GstreamerPlayerAdapter(
 
         Logger.d(TAG, "⚡ State transition: $oldState -> $newState (playWhenReady=$internalPlayWhenReady, transitioning=$isTransitioning)")
 
+        currentPlayer?.playerBin?.queryDuration(Format.TIME)?.let {
+            cachedDuration = it
+        }
+
         // Notify listeners
         when (newState) {
             InternalState.IDLE -> {

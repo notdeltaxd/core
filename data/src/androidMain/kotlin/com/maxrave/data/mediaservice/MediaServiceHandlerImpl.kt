@@ -62,6 +62,7 @@ import com.maxrave.domain.utils.toListName
 import com.maxrave.domain.utils.toSongEntity
 import com.maxrave.domain.utils.toTrack
 import com.maxrave.logger.Logger
+import com.my.kizzy.DiscordRPC
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -101,6 +102,8 @@ internal class MediaServiceHandlerImpl(
     MediaPlayerListener {
     private val context: Context = getKoin().get()
     override val player: MediaPlayerInterface = getKoin().get()
+
+    private var discordRPC: DiscordRPC? = null
     override var onUpdateNotification: (List<GenericCommandButton>) -> Unit = {}
     override var showToast: (ToastType) -> Unit = {}
     override var pushPlayerError: (PlayerError) -> Unit = {}
@@ -324,10 +327,26 @@ internal class MediaServiceHandlerImpl(
                         Logger.w(TAG, "Playback current speed: ${player.playbackParameters.speed}, Pitch: ${player.playbackParameters.pitch}")
                     }
                 }
+            val discordRPCEnabledJob = launch {
+                dataStoreManager.richPresenceEnabled.collectLatest {
+                    if (it == TRUE && discordRPC == null) {
+                        discordRPC = DiscordRPC(dataStoreManager.discordToken.first())
+                        nowPlayingState.value.songEntity?.let { song ->
+                            discordRPC?.updateSong(song)
+                        }
+                    } else if (it == FALSE) {
+                        if (discordRPC?.isRpcRunning() == true) {
+                            discordRPC?.closeRPC()
+                        }
+                        discordRPC = null
+                    }
+                }
+            }
             controlStateJob.join()
             skipSegmentsJob.join()
             playbackJob.join()
             playbackSpeedPitchJob.join()
+            discordRPCEnabledJob.join()
         }
     }
 
@@ -388,6 +407,7 @@ internal class MediaServiceHandlerImpl(
                             songEntity = songEntity ?: track?.toSongEntity() ?: mediaItem.toSongEntity(),
                         )
                     }
+                    updateDiscordRpc(songEntity ?: track?.toSongEntity() ?: mediaItem.toSongEntity())
                     Logger.w(TAG, "getDataOfNowPlayingState: ${nowPlayingState.value}")
                 }
                 songEntityJob?.cancel()
@@ -1901,6 +1921,10 @@ internal class MediaServiceHandlerImpl(
     override fun release() {
         Logger.w("ServiceHandler", "Starting release process")
         try {
+            if (discordRPC?.isRpcRunning() == true) {
+                discordRPC?.closeRPC()
+            }
+            discordRPC = null
             // Save state first
             mayBeSaveRecentSong(true)
             mayBeSavePlaybackState()
@@ -2046,6 +2070,12 @@ internal class MediaServiceHandlerImpl(
         updateNotification()
         if (player.currentMediaItemIndex == 0) {
             resetCrossfade()
+        }
+    }
+
+    private fun updateDiscordRpc(song: SongEntity) {
+        coroutineScope.launch {
+            discordRPC?.updateSong(song)
         }
     }
 

@@ -65,7 +65,6 @@ kotlin {
                 implementation(libs.ktor.client.logging)
 
                 implementation(libs.kotlin.reflect)
-                implementation(libs.kotlin.stdlib)
                 implementation(libs.kotlin.test)
 
                 implementation(libs.common)

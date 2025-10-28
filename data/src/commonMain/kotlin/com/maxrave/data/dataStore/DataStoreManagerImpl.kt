@@ -1123,6 +1123,30 @@ internal class DataStoreManagerImpl(
         }
     }
 
+    override val discordToken: Flow<String> = settingsDataStore.data.map { preferences ->
+        preferences[DISCORD_TOKEN] ?: ""
+    }
+
+    override suspend fun setDiscordToken(token: String) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[DISCORD_TOKEN] = token
+            }
+        }
+    }
+
+    override val richPresenceEnabled: Flow<String> = settingsDataStore.data.map { preferences ->
+        preferences[RICH_PRESENCE] ?: FALSE
+    }
+
+    override suspend fun setRichPresenceEnabled(enabled: Boolean) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[RICH_PRESENCE] = if (enabled) TRUE else FALSE
+            }
+        }
+    }
+
     companion object Settings {
         val APP_VERSION = stringPreferencesKey("app_version")
         val COOKIE = stringPreferencesKey("cookie")
@@ -1198,6 +1222,9 @@ internal class DataStoreManagerImpl(
         val LIQUID_GLASS = stringPreferencesKey("liquid_glass")
 
         val EXPLICIT_CONTENT_ENABLED = stringPreferencesKey("explicit_content_enabled")
+
+        val DISCORD_TOKEN = stringPreferencesKey("discord_token")
+        val RICH_PRESENCE = stringPreferencesKey("rich_presence")
     }
 }
 

@@ -45,8 +45,8 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.espresso.core)
 
-    implementation(project(":common"))
-    implementation(project(":domain"))
+    implementation(projects.common)
+    implementation(projects.domain)
 
     // Koin
     implementation(platform(libs.koin.bom))

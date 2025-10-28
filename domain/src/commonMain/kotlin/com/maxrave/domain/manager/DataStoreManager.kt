@@ -275,6 +275,14 @@ interface DataStoreManager {
 
     suspend fun setExplicitContentEnabled(enabled: Boolean)
 
+    val discordToken: Flow<String>
+
+    suspend fun setDiscordToken(token: String)
+
+    val richPresenceEnabled: Flow<String>
+
+    suspend fun setRichPresenceEnabled(enabled: Boolean)
+
     enum class ProxyType {
         PROXY_TYPE_HTTP,
         PROXY_TYPE_SOCKS,

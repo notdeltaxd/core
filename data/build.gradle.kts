@@ -70,6 +70,7 @@ kotlin {
                 implementation(projects.lyricsService)
                 implementation(projects.spotify)
                 implementation(projects.kotlinYtmusicScraper)
+                implementation(projects.kizzy)
 
                 implementation(libs.kotlin.stdlib)
                 // Add KMP dependencies here
