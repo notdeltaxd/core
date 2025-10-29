@@ -70,6 +70,7 @@ class GstreamerPlayerAdapter(
         PREPARING, // Loading media
         READY, // Ready to play/paused
         PLAYING, // Currently playing
+        PAUSED,
         ENDED, // Playback ended
         ERROR, // Error state
     }
@@ -179,7 +180,7 @@ class GstreamerPlayerAdapter(
         Logger.d(TAG, "▶️ play() called (current state: $internalState, playWhenReady: $internalPlayWhenReady)")
         coroutineScope.launch {
             when (internalState) {
-                InternalState.READY, InternalState.ENDED -> {
+                InternalState.READY, InternalState.ENDED, InternalState.PAUSED -> {
                     currentPlayer?.let { player ->
                         Logger.d(TAG, "▶️ Play: Setting GStreamer state to PLAYING")
                         isTransitioning = true
@@ -223,7 +224,7 @@ class GstreamerPlayerAdapter(
                         Logger.d(TAG, "⏸️ Pause: Setting GStreamer state to PAUSED")
                         isTransitioning = true
                         player.setState(State.PAUSED)
-                        transitionToState(InternalState.READY)
+                        transitionToState(InternalState.PAUSED)
                         internalPlayWhenReady = false
                         // State change will be handled by stateChangedListener
                     }
@@ -518,6 +519,7 @@ class GstreamerPlayerAdapter(
                 InternalState.PLAYING -> PlayerConstants.STATE_READY
                 InternalState.ENDED -> PlayerConstants.STATE_ENDED
                 InternalState.ERROR -> PlayerConstants.STATE_IDLE
+                InternalState.PAUSED -> PlayerConstants.STATE_READY
             }
 
     // ========== Navigation ==========
@@ -682,6 +684,10 @@ class GstreamerPlayerAdapter(
 
         // Notify listeners
         when (newState) {
+            InternalState.PAUSED -> {
+                listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_READY) }
+                listeners.forEach { it.onIsPlayingChanged(false) }
+            }
             InternalState.IDLE -> {
                 listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_IDLE) }
                 listeners.forEach { it.onIsPlayingChanged(false) }
