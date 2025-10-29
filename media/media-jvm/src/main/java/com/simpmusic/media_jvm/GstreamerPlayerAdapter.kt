@@ -15,10 +15,6 @@ import com.maxrave.logger.Logger
 import com.simpmusic.media_jvm.download.getDownloadPath
 import com.sun.jna.Platform
 import com.sun.jna.platform.win32.Kernel32
-import dev.toastbits.mediasession.MediaSession
-import dev.toastbits.mediasession.MediaSessionLoopMode
-import dev.toastbits.mediasession.MediaSessionMetadata
-import dev.toastbits.mediasession.MediaSessionPlaybackStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -49,7 +45,6 @@ import java.util.EnumSet
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
-import kotlin.time.TimeSource
 
 private const val TAG = "GstreamerPlayerAdapter"
 
@@ -68,7 +63,6 @@ class GstreamerPlayerAdapter(
     private val dataStoreManager: DataStoreManager,
     private val streamRepository: StreamRepository,
 ) : MediaPlayerInterface {
-    private var session: MediaSession? = null
 
     // Internal state enum for proper state machine
     private enum class InternalState {
@@ -691,17 +685,14 @@ class GstreamerPlayerAdapter(
             InternalState.IDLE -> {
                 listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_IDLE) }
                 listeners.forEach { it.onIsPlayingChanged(false) }
-                session?.setPlaybackStatus(MediaSessionPlaybackStatus.PAUSED)
             }
 
             InternalState.PREPARING -> {
                 listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_BUFFERING) }
                 listeners.forEach { it.onIsLoadingChanged(true) }
-                session?.setPlaybackStatus(MediaSessionPlaybackStatus.PAUSED)
             }
 
             InternalState.READY -> {
-                session?.setPlaybackStatus(MediaSessionPlaybackStatus.PAUSED)
                 if (internalPlayWhenReady) {
                     play()
                 } else {
@@ -717,19 +708,16 @@ class GstreamerPlayerAdapter(
                 listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_READY) }
                 listeners.forEach { it.onIsLoadingChanged(false) }
                 listeners.forEach { it.onIsPlayingChanged(true) }
-                session?.setPlaybackStatus(MediaSessionPlaybackStatus.PLAYING)
             }
 
             InternalState.ENDED -> {
                 listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_ENDED) }
                 listeners.forEach { it.onIsPlayingChanged(false) }
-                session?.setPlaybackStatus(MediaSessionPlaybackStatus.PAUSED)
             }
 
             InternalState.ERROR -> {
                 listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_IDLE) }
                 listeners.forEach { it.onIsPlayingChanged(false) }
-                session?.setPlaybackStatus(MediaSessionPlaybackStatus.PAUSED)
             }
         }
     }
@@ -762,69 +750,6 @@ class GstreamerPlayerAdapter(
                             PlayerConstants.MEDIA_ITEM_TRANSITION_REASON_AUTO,
                         )
                     }
-                    if (session == null) {
-                        var time = TimeSource.Monotonic.markNow()
-                        session =
-                            MediaSession.create(
-                                getPositionMs = { time.elapsedNow().inWholeMilliseconds },
-                            )
-                        if (session == null) {
-                            Logger.e(TAG, "Failed to create MediaSession")
-                        }
-                        session?.onPlayPause = {
-                            if (internalState == InternalState.PLAYING) {
-                                pause()
-                            } else {
-                                play()
-                            }
-                        }
-                        session?.onPlay = {
-                            play()
-                        }
-                        session?.onPause = {
-                            pause()
-                        }
-                        session?.onNext = {
-                            seekToNext()
-                        }
-                        session?.onPrevious = {
-                            seekToPrevious()
-                        }
-                        session?.onSeek = { by_ms ->
-                            seekTo(currentPosition + by_ms)
-                        }
-                        session?.onSetPosition = { to_ms ->
-                            seekTo(to_ms)
-                        }
-                        session?.setIdentity("com.maxrave.simpmusic")
-                        session?.setDesktopEntry("mediasession")
-                        session?.setLoopMode(
-                            when (internalRepeatMode) {
-                                PlayerConstants.REPEAT_MODE_OFF -> MediaSessionLoopMode.NONE
-                                PlayerConstants.REPEAT_MODE_ONE -> MediaSessionLoopMode.ONE
-                                PlayerConstants.REPEAT_MODE_ALL -> MediaSessionLoopMode.ALL
-                                else -> MediaSessionLoopMode.NONE
-                            },
-                        )
-                        session?.setShuffle(
-                            internalShuffleModeEnabled,
-                        )
-                        session?.setEnabled(true)
-                    }
-                    session?.setMetadata(
-                        MediaSessionMetadata(
-                            length_ms = 5000,
-                            art_url = "${mediaItem.metadata.artworkUri}",
-                            album = "${mediaItem.metadata.albumTitle}",
-                            album_artists = listOf("${mediaItem.metadata.artist}"),
-                            artist = mediaItem.metadata.artist,
-                            title = mediaItem.metadata.title,
-                            custom_metadata =
-                                mapOf(
-                                    "xesam:artist" to "[${mediaItem.metadata.artist}]",
-                                ),
-                        ),
-                    )
                     // Use precached player if available
                     val cachedPlayer = precachedPlayers.remove(videoId)
                     val player =

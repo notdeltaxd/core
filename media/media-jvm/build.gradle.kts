@@ -1,6 +1,6 @@
 plugins {
     id("java-library")
-    id("com.google.osdetector") version "1.7.3"
+    alias(libs.plugins.osdetector)
     alias(libs.plugins.jetbrains.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
 }
@@ -28,7 +28,5 @@ kotlin {
 
         implementation(libs.jna)
         implementation(libs.jna.platform)
-
-        implementation(libs.mediasession.jvm)
     }
 }
