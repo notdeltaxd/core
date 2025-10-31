@@ -31,8 +31,11 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.freedesktop.gstreamer.Bin
 import org.freedesktop.gstreamer.Bus
+import org.freedesktop.gstreamer.Element
+import org.freedesktop.gstreamer.ElementFactory
 import org.freedesktop.gstreamer.Format
 import org.freedesktop.gstreamer.Gst
+import org.freedesktop.gstreamer.Pipeline
 import org.freedesktop.gstreamer.State
 import org.freedesktop.gstreamer.Version
 import org.freedesktop.gstreamer.elements.PlayBin
@@ -88,7 +91,7 @@ class GstreamerPlayerAdapter(
          * throw an exception in the bindings even if the actual native library
          * is a higher version.
          */
-        Gst.init(Version.BASELINE, "FXPlayer")
+        Gst.init(Version.BASELINE, "FXPlayer", "--gapless")
     }
 
     // ========== Threading Model ==========
@@ -678,7 +681,8 @@ class GstreamerPlayerAdapter(
 
         Logger.d(TAG, "⚡ State transition: $oldState -> $newState (playWhenReady=$internalPlayWhenReady, transitioning=$isTransitioning)")
 
-        currentPlayer?.playerBin?.queryDuration(Format.TIME)?.let {
+        currentPlayer?.playerBin?.queryDuration(TimeUnit.MILLISECONDS)?.let {
+            Logger.d(TAG, "Current duration updated: $it ms")
             cachedDuration = it
         }
 
@@ -702,9 +706,6 @@ class GstreamerPlayerAdapter(
                 if (internalPlayWhenReady) {
                     play()
                 } else {
-                    currentPlayer?.playerBin?.queryDuration(Format.TIME)?.let {
-                        cachedDuration = it
-                    }
                     listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_READY) }
                     listeners.forEach { it.onIsPlayingChanged(false) }
                 }
@@ -724,6 +725,13 @@ class GstreamerPlayerAdapter(
             InternalState.ERROR -> {
                 listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_IDLE) }
                 listeners.forEach { it.onIsPlayingChanged(false) }
+                listeners.forEach { it.onPlayerError(
+                    PlayerError(
+                        errorCode = 403,
+                        errorCodeName = "ERROR_UNKNOWN",
+                        message = "Can not extract playable URL or playback error",
+                    )
+                ) }
             }
         }
     }
@@ -825,7 +833,6 @@ class GstreamerPlayerAdapter(
         val audioPlayer =
             PlayBin("audioPlayer-${System.currentTimeMillis()}").apply {
                 setURI(URI(audioUri))
-                autoFlushBus = true
             }
 
         val (videoPlayer, videoComponent) =
@@ -835,39 +842,26 @@ class GstreamerPlayerAdapter(
                     PlayBin("videoPlayer-${System.currentTimeMillis()}").apply {
                         setURI(URI(videoUri))
                         setVideoSink(vc.element)
-                        autoFlushBus = true
                     }
                 bin to vc
             } else {
                 null to null
             }
 
-//        // Disable video, enable audio
-//        try {
-//            val currentFlags = player["flags"] as? Int ?: 0x00000617
-//            val audioOnlyFlags = (currentFlags and 0x01.inv()) or 0x02 or 0x20
-//            player["flags"] = audioOnlyFlags
-//            Logger.d(TAG, "PlayBin flags set to audio-only: $audioOnlyFlags")
-//        } catch (e: Exception) {
-//            Logger.e(TAG, "Failed to set playbin flags: ${e.message}", e)
-//        }
-
-//        // Disable video sink
-//        try {
-//            val fakeSink = ElementFactory.make("fakesink", "video-sink")
-//            if (fakeSink != null) {
-//                player.setVideoSink(fakeSink)
-//            }
-//        } catch (e: Exception) {
-//            Logger.e(TAG, "Failed to disable video sink: ${e.message}", e)
-//        }
-
         audioPlayer["mute"] = false
         videoPlayer?.let { vp -> vp["mute"] = true }
 
         videoPlayer?.let {
-            audioPlayer.add(videoPlayer)
-            audioPlayer.link(videoPlayer)
+            val pipeline = Pipeline("mediaPipeline-${System.currentTimeMillis()}")
+
+            val muxer = ElementFactory.make("matroskademux", "mux")
+            pipeline.addMany(audioPlayer, it, muxer)
+            Element.linkMany(muxer, *audioPlayer.sinks.toTypedArray())
+            Element.linkMany(muxer, *it.sinks.toTypedArray())
+            return GstreamerPlayer(
+                playerBin = pipeline,
+                videoComponent = videoComponent,
+            )
         }
 
         return GstreamerPlayer(
@@ -901,7 +895,7 @@ class GstreamerPlayerAdapter(
             Bus.DURATION_CHANGED { _ ->
                 coroutineScope.launch {
                     currentPlayer?.let { player ->
-                        val dur = player.playerBin.queryDuration(Format.TIME)
+                        val dur = player.playerBin.queryDuration(TimeUnit.MILLISECONDS)
                         cachedDuration = if (dur != -1L) dur / 1000000 else 0L
                         Logger.d(TAG, "Duration updated: $cachedDuration ms")
                     }
@@ -983,6 +977,13 @@ class GstreamerPlayerAdapter(
                 if (percent in 1..100) {
                     Logger.d(TAG, "Buffering: $percent%")
                     cachedBufferedPosition = duration
+                    if (percent == 100) {
+                        currentPlayer?.let { player ->
+                            val dur = player.playerBin.queryDuration(TimeUnit.MILLISECONDS)
+                            cachedDuration = if (dur != -1L) dur / 1000000 else 0L
+                            Logger.d(TAG, "Duration updated: $cachedDuration ms")
+                        }
+                    }
                 }
             }
 
@@ -1391,7 +1392,7 @@ class GstreamerPlayerAdapter(
 }
 
 data class GstreamerPlayer(
-    val playerBin: PlayBin,
+    val playerBin: Pipeline,
     val videoComponent: GstVideoComponent? = null,
 ) {
     fun setState(state: State) {
@@ -1422,6 +1423,8 @@ data class GstreamerPlayer(
     }
 
     fun setVolume(volume: Double) {
-        playerBin.volume = volume
+        if (playerBin is PlayBin) {
+            playerBin["volume"] = volume.toFloat()
+        }
     }
 }

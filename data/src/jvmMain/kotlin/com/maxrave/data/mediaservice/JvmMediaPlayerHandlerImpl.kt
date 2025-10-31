@@ -2021,10 +2021,14 @@ class JvmMediaPlayerHandlerImpl(
         _controlState.value = _controlState.value.copy(isPlaying = isPlaying)
         if (isPlaying) {
             startProgressUpdate()
+            nowPlayingState.value.songEntity?.let { updateDiscordRpc(it) }
         } else {
             stopProgressUpdate()
             mayBeSaveRecentSong()
             mayBeSavePlaybackState()
+            if (discordRPC?.isRpcRunning() == true) {
+                discordRPC?.closeRPC()
+            }
         }
         updateNextPreviousTrackAvailability()
     }
