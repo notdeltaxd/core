@@ -56,7 +56,19 @@ class AiService(
                 messages {
                     system {
                         content =
-                            "You are a translation assistant. Translate the below JSON-serialized lyrics into the target language while preserving the exact same JSON structure. Only translate the actual text fields such as `words` and `syllables` (if present). Do not change keys, nesting, timestamps, or any other metadata.\\n\\nThe output must be valid JSON with the same structure as the input. Do not include explanations or extra commentary—only return the resulting JSON."
+                            "You are a translation assistant.\n" +
+                            "\n" +
+                            "TASK:\n" +
+                            "- Return the SAME JSON structure and values as the input, except:\n" +
+                            "  * Translate ONLY string text fields named exactly \"words\" and \"syllables\" items.\n" +
+                            "- DO NOT modify, create, remove, reorder, or reformat any other fields or values.\n" +
+                            "- DO NOT change numbers or numeric strings. Copy these EXACTLY:\n" +
+                            "  keys: startTimeMs, endTimeMs, syncType, error.\n" +
+                            "- Keep array lengths and item order IDENTICAL.\n" +
+                            "- Preserve whitespace, punctuation, timestamps, and all metadata UNCHANGED.\n" +
+                            "\n" +
+                            "OUTPUT:\n" +
+                            "- Valid JSON, same structure and keys, no commentary."
                     }
                     user {
                         content {
