@@ -100,9 +100,11 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import okio.Path
 import kotlin.jvm.JvmInline
+import kotlin.math.round
 import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 private const val TAG = "YouTubeScraper"
 
@@ -1191,6 +1193,41 @@ class YouTube {
                             },
                     ),
             )
+        decodedSigResponse = decodedSigResponse.copy(
+            streamingData = decodedSigResponse.streamingData?.copy(
+                formats = decodedSigResponse.streamingData.formats?.let { formats ->
+                    val copy = formats.toMutableList()
+                    streamInfo.formats?.filterNotNull()?.filter {
+                        isManifestUrl(it.url ?: "")
+                    }?.forEach { manifest ->
+                        copy.add(
+                            PlayerResponse.StreamingData.Format(
+                                itag = manifest.formatId?.toInt() ?: 0,
+                                url = manifest.url,
+                                mimeType = "",
+                                bitrate = 0,
+                                width = manifest.width?.toInt(),
+                                height = manifest.height?.toInt(),
+                                contentLength = 0,
+                                quality = "",
+                                fps = 0,
+                                qualityLabel = "",
+                                averageBitrate = 0,
+                                audioQuality = "",
+                                approxDurationMs = "",
+                                audioSampleRate = 0,
+                                audioChannels = 0,
+                                loudnessDb = 0.0,
+                                lastModified = 0,
+                                signatureCipher = ""
+                            )
+                        )
+                    }
+                    copy.filter { it.itag != 0 }
+                    copy
+                }
+            )
+        )
         listUrlSig.addAll(
             (
                 decodedSigResponse
@@ -1417,7 +1454,7 @@ class YouTube {
                                 run {
                                     val today = Clock.System.todayIn(TimeZone.UTC)
                                     val epoch =
-                                        kotlin.time.Instant
+                                        Instant
                                             .fromEpochSeconds(0)
                                             .toLocalDateTime(TimeZone.UTC)
                                             .date
@@ -1436,7 +1473,7 @@ class YouTube {
                                     playbackTracking?.copy(
                                         atrUrl =
                                             playbackTracking.atrUrl?.copy(
-                                                playbackTracking.atrUrl.baseUrl
+                                                baseUrl = playbackTracking.atrUrl.baseUrl
                                                     ?.toKmpUri()
                                                     ?.buildUpon()
                                                     ?.apply {
@@ -1448,7 +1485,7 @@ class YouTube {
                                             ),
                                         videostatsPlaybackUrl =
                                             playbackTracking.videostatsPlaybackUrl?.copy(
-                                                playbackTracking.videostatsPlaybackUrl.baseUrl
+                                                baseUrl = playbackTracking.videostatsPlaybackUrl.baseUrl
                                                     ?.toKmpUri()
                                                     ?.buildUpon()
                                                     ?.apply {
@@ -1460,7 +1497,7 @@ class YouTube {
                                             ),
                                         videostatsWatchtimeUrl =
                                             playbackTracking.videostatsWatchtimeUrl?.copy(
-                                                playbackTracking.videostatsWatchtimeUrl.baseUrl
+                                                baseUrl = playbackTracking.videostatsWatchtimeUrl.baseUrl
                                                     ?.toKmpUri()
                                                     ?.buildUpon()
                                                     ?.apply {
@@ -1646,7 +1683,7 @@ class YouTube {
                                 if (atr == 204) {
                                     Logger.d(TAG, "atr done")
                                     delay(500)
-                                    val secondWatchTime = (kotlin.math.round(Random.nextFloat() * 100.0) / 100.0).toFloat() + 12f
+                                    val secondWatchTime = (round(Random.nextFloat() * 100.0) / 100.0).toFloat() + 12f
                                     ytMusic
                                         .initPlayback(
                                             watchtimeUrl,

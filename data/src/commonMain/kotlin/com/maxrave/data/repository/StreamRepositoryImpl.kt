@@ -84,17 +84,22 @@ internal class StreamRepositoryImpl(
         dataStoreManager: DataStoreManager,
         videoId: String,
         isVideo: Boolean,
+        muxed: Boolean
     ): Flow<String?> =
         flow {
             val itag = QUALITY.itags.getOrNull(QUALITY.items.indexOf(dataStoreManager.quality.first()))
             val videoItag =
-                VIDEO_QUALITY.itags.getOrNull(
-                    VIDEO_QUALITY.items.indexOf(dataStoreManager.videoQuality.first()),
-                )
-                    ?: 134
+                if (!muxed) {
+                    VIDEO_QUALITY.itags.getOrNull(
+                        VIDEO_QUALITY.items.indexOf(dataStoreManager.videoQuality.first()),
+                    )
+                        ?: 134
+                } else {
+                    18
+                }
             // 134, 136, 137
             youTube
-                .player(videoId, shouldYtdlp = itag == 774)
+                .player(videoId, shouldYtdlp = itag == 774 || muxed)
                 .onSuccess { data ->
                     val response = data.second
                     if (data.third == MediaType.Song) {
@@ -156,6 +161,12 @@ internal class StreamRepositoryImpl(
                     if (!isVideo && superFormat != null) {
                         format = superFormat
                     }
+                    if (muxed) {
+                        format = formatList.filter {
+                            val url = it.url
+                            url != null && youTube.isManifestUrl(url)
+                        }.maxByOrNull { it.width ?: 0 } ?: formatList.find { it.itag == videoItag }
+                    }
                     Logger.w("Stream", "Super format: $superFormat")
                     Logger.w("Stream", "format: $format")
                     Logger.d("Stream", "expireInSeconds ${response.streamingData?.expiresInSeconds}")
@@ -209,8 +220,23 @@ internal class StreamRepositoryImpl(
                         )
                     }
                     if (data.first != null) {
-                        emit(format?.url?.plus("&cpn=${data.first}&range=0-${format.contentLength ?: 10000000}"))
+                        emit(format?.url?.let { url ->
+                                if (youTube.isManifestUrl(url)) {
+                                    url.plus("&cpn=${data.first}")
+                                } else {
+                                    url.plus("&cpn=${data.first}&range=0-${format.contentLength ?: 10000000}")
+                                }
+                            }
+                        )
                     } else {
+                        emit(format?.url?.let { url ->
+                            if (youTube.isManifestUrl(url)) {
+                                url
+                            } else {
+                                url.plus("&range=0-${format.contentLength ?: 10000000}")
+                            }
+                        }
+                        )
                         emit(format?.url?.plus("&range=0-${format.contentLength ?: 10000000}"))
                     }
                 }.onFailure {

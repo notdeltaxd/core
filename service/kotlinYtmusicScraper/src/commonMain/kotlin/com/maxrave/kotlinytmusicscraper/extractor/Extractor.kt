@@ -18,7 +18,7 @@ expect class Extractor() {
     fun ytdlpGetStreamUrl(
         videoId: String,
         poToken: String?,
-        clientName: String,
+        clientName: String?,
         cookiePath: String?,
     ): String? // text response
 

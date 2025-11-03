@@ -41,19 +41,22 @@ actual class Extractor {
     actual fun ytdlpGetStreamUrl(
         videoId: String,
         poToken: String?,
-        clientName: String,
+        clientName: String?,
         cookiePath: String?
     ): String? {
         val ytDlp = YoutubeDL.getInstance()
         val ytRequest = YoutubeDLRequest("https://music.youtube.com/watch?v=$videoId")
         if (!cookiePath.isNullOrEmpty()) {
-            ytRequest.addOption("--cookies", cookiePath ?: "")
+            ytRequest.addOption("--cookies", cookiePath)
         }
-        ytRequest.addOption(
-            "--extractor-args",
-            "youtube:player_client=$clientName;youtube:webpage_skip" +
-                if (clientName.contains("web") && poToken != null) ";youtube:po_token=$clientName.gvs+$poToken;" else "",
-        )
+        ytRequest.addOption("--no-warnings")
+        if (clientName != null) {
+            ytRequest.addOption(
+                "--extractor-args",
+                "youtube:player_client=$clientName;youtube:webpage_skip" +
+                    if (clientName.contains("web") && poToken != null) ";youtube:po_token=$clientName.gvs+$poToken;" else "",
+            )
+        }
         ytRequest.addOption("--dump-json")
         val result = ytDlp?.execute(ytRequest)
         return result?.out

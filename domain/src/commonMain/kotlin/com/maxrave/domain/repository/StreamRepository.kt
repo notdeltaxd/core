@@ -20,6 +20,7 @@ interface StreamRepository {
         dataStoreManager: DataStoreManager,
         videoId: String,
         isVideo: Boolean,
+        muxed: Boolean = false, // m3u8 or mp4 (both contain audio and video)
     ): Flow<String?>
 
     fun initPlayback(

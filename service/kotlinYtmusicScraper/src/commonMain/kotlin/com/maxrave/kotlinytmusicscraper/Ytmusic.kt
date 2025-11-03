@@ -389,8 +389,8 @@ class Ytmusic {
             val result =
                 extractor.ytdlpGetStreamUrl(
                     videoId = videoId,
-                    poToken = poToken,
-                    clientName = clientName,
+                    poToken = null,
+                    clientName = null,
                     cookiePath = cookiePath?.toString(),
                 )
             val data = result?.let { json.decodeFromString<YtdlpVideoInfo>(it) }

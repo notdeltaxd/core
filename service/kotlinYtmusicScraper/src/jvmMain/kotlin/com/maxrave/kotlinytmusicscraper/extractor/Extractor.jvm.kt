@@ -35,7 +35,7 @@ actual class Extractor {
     actual fun ytdlpGetStreamUrl(
         videoId: String,
         poToken: String?,
-        clientName: String,
+        clientName: String?,
         cookiePath: String?,
     ): String? {
         val processBuilder = ProcessBuilder("yt-dlp")
@@ -43,9 +43,14 @@ actual class Extractor {
             processBuilder.command().add("--cookies")
             processBuilder.command().add(cookiePath)
         }
-        processBuilder.command().add("--extractor-args")
-        processBuilder.command().add("youtube:player_client=$clientName;youtube:webpage_skip;" +
-            if (clientName.contains("web") && poToken != null) "youtube:po_token=$clientName.gvs+$poToken;" else "")
+        if (clientName != null) {
+            processBuilder.command().add("--extractor-args")
+            processBuilder.command().add(
+                "youtube:player_client=$clientName;youtube:webpage_skip;" +
+                    if (clientName.contains("web") && poToken != null) "youtube:po_token=$clientName.gvs+$poToken;" else ""
+            )
+        }
+        processBuilder.command().add("--no-warnings")
         processBuilder.command().add("--dump-json")
         processBuilder.command().add("https://www.youtube.com/watch?v=$videoId")
         processBuilder.redirectErrorStream(true)
