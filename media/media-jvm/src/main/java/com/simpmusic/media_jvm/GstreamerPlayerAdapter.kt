@@ -64,7 +64,6 @@ class GstreamerPlayerAdapter(
     private val dataStoreManager: DataStoreManager,
     private val streamRepository: StreamRepository,
 ) : MediaPlayerInterface {
-
     // Internal state enum for proper state machine
     private enum class InternalState {
         IDLE, // No media loaded
@@ -691,8 +690,10 @@ class GstreamerPlayerAdapter(
         Logger.d(TAG, "⚡ State transition: $oldState -> $newState (playWhenReady=$internalPlayWhenReady)")
 
         currentPlayer?.playerBin?.queryDuration(TimeUnit.MILLISECONDS)?.let {
-            Logger.d(TAG, "Current duration updated: $it ms")
-            cachedDuration = it
+            if (it > 0L) {
+                Logger.d(TAG, "Current duration updated: $it ms")
+                cachedDuration = it
+            }
         }
 
         // Notify listeners
@@ -701,6 +702,7 @@ class GstreamerPlayerAdapter(
                 listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_READY) }
                 listeners.forEach { it.onIsPlayingChanged(false) }
             }
+
             InternalState.IDLE -> {
                 listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_IDLE) }
                 listeners.forEach { it.onIsPlayingChanged(false) }
@@ -734,13 +736,15 @@ class GstreamerPlayerAdapter(
             InternalState.ERROR -> {
                 listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_IDLE) }
                 listeners.forEach { it.onIsPlayingChanged(false) }
-                listeners.forEach { it.onPlayerError(
-                    PlayerError(
-                        errorCode = 403,
-                        errorCodeName = "ERROR_UNKNOWN",
-                        message = "Can not extract playable URL or playback error",
+                listeners.forEach {
+                    it.onPlayerError(
+                        PlayerError(
+                            errorCode = 403,
+                            errorCodeName = "ERROR_UNKNOWN",
+                            message = "Can not extract playable URL or playback error",
+                        ),
                     )
-                ) }
+                }
             }
         }
     }
@@ -847,16 +851,20 @@ class GstreamerPlayerAdapter(
      */
     private suspend fun createMediaPlayerInternal(
         isVideo: Boolean,
-        uri: String
+        uri: String,
     ): GstreamerPlayer {
         // Case 1: Audio + Video (TWO SEPARATE PLAYBINS)
         if (isVideo) {
             val videoComponent = GstVideoComponent()
 
-            val videoPlayBin = PlayBin("videoPlayer-${System.currentTimeMillis()}").apply {
-                setURI(URI(uri))
-                setVideoSink(videoComponent.element)
-            }
+            val videoPlayBin =
+                PlayBin("videoPlayer-${System.currentTimeMillis()}").apply {
+                    setURI(URI(uri))
+                    setVideoSink(videoComponent.element)
+                }
+
+            videoPlayBin.set("buffer-size", 5242880) // 5 MB
+            videoPlayBin.set("buffer-duration", 5000) // 5 seconds
 
             return GstreamerPlayer(
                 playerBin = videoPlayBin,
@@ -866,9 +874,10 @@ class GstreamerPlayerAdapter(
 
         // Case 2: Audio only (single PlayBin)
         Logger.d(TAG, "Creating audio-only player: $uri")
-        val audioPlayer = PlayBin("audioPlayer-${System.currentTimeMillis()}").apply {
-            setURI(URI(uri))
-        }
+        val audioPlayer =
+            PlayBin("audioPlayer-${System.currentTimeMillis()}").apply {
+                setURI(URI(uri))
+            }
 
         return GstreamerPlayer(
             playerBin = audioPlayer,
@@ -901,9 +910,11 @@ class GstreamerPlayerAdapter(
             Bus.DURATION_CHANGED { _ ->
                 coroutineScope.launch {
                     currentPlayer?.let { player ->
-                        val dur = player.playerBin.queryDuration(TimeUnit.MILLISECONDS)
-                        cachedDuration = if (dur != -1L) dur / 1000000 else 0L
-                        Logger.d(TAG, "Duration updated: $cachedDuration ms")
+                        if (duration > 0L) {
+                            val dur = player.playerBin.queryDuration(TimeUnit.MILLISECONDS)
+                            cachedDuration = if (dur != -1L) dur / 1000000 else cachedDuration
+//                        Logger.d(TAG, "Duration updated: $cachedDuration ms")
+                        }
                     }
                 }
             }
@@ -981,13 +992,15 @@ class GstreamerPlayerAdapter(
         val bufferingListener =
             Bus.BUFFERING { _, percent ->
                 if (percent in 1..100) {
-                    Logger.d(TAG, "Buffering: $percent%")
+//                    Logger.d(TAG, "Buffering: $percent%")
                     cachedBufferedPosition = duration
                     if (percent == 100) {
                         currentPlayer?.let { player ->
                             val dur = player.playerBin.queryDuration(TimeUnit.MILLISECONDS)
-                            cachedDuration = if (dur != -1L) dur / 1000000 else 0L
-                            Logger.d(TAG, "Duration updated: $cachedDuration ms")
+                            if (dur > 0L) {
+                                cachedDuration = dur / 1000000
+                            }
+//                            Logger.d(TAG, "Duration updated: $cachedDuration ms")
                         }
                     }
                 }
@@ -1117,8 +1130,8 @@ class GstreamerPlayerAdapter(
                                 val pos = player.queryPosition(TimeUnit.MILLISECONDS)
                                 val dur = player.queryDuration(TimeUnit.MILLISECONDS)
 
-                                if (pos >= 0) cachedPosition = pos
-                                if (dur >= 0) cachedDuration = dur
+                                if (pos > 0) cachedPosition = pos
+                                if (dur > 0) cachedDuration = dur
                             }
                         }
                     } catch (e: Exception) {
@@ -1310,24 +1323,22 @@ class GstreamerPlayerAdapter(
                             muxed = true,
                         ).lastOrNull()
                         ?.let {
-                            Logger.d("Stream", it)
-                            Logger.w("Stream", "Audio")
+                            Logger.d(TAG, "Stream Video $it")
                             it
                         }
                 return true to (videoUrl ?: return null)
             } else {
                 val audioUrl =
-                        streamRepository
-                            .getStream(
-                                dataStoreManager,
-                                videoId,
-                                false,
-                            ).lastOrNull()
-                            ?.let {
-                                Logger.d("Stream", it)
-                                Logger.w("Stream", "Audio")
-                                it
-                            }
+                    streamRepository
+                        .getStream(
+                            dataStoreManager,
+                            videoId,
+                            false,
+                        ).lastOrNull()
+                        ?.let {
+                            Logger.d(TAG, "Stream Audio $it")
+                            it
+                        }
                 return true to (audioUrl ?: return null)
             }
         }
@@ -1429,6 +1440,6 @@ data class GstreamerPlayer(
 
     fun setVolume(volume: Double) {
         // Set volume on the playerBin (which is the audio PlayBin in dual-stream case)
-//        playerBin.setVolume(volume)
+        (playerBin as? PlayBin)?.volume = volume
     }
 }

@@ -47,7 +47,7 @@ actual class Extractor {
             processBuilder.command().add("--extractor-args")
             processBuilder.command().add(
                 "youtube:player_client=$clientName;youtube:webpage_skip;" +
-                    if (clientName.contains("web") && poToken != null) "youtube:po_token=$clientName.gvs+$poToken;" else ""
+                    if (clientName.contains("web") && poToken != null) "youtube:po_token=$clientName.gvs+$poToken;" else "",
             )
         }
         processBuilder.command().add("--no-warnings")
@@ -79,9 +79,14 @@ actual class Extractor {
     actual fun newPipePlayer(videoId: String): List<Pair<Int, String>> {
         val streamInfo = StreamInfo.getInfo(NewPipe.getService(0), "https://www.youtube.com/watch?v=$videoId")
         val streamsList = streamInfo.audioStreams + streamInfo.videoStreams + streamInfo.videoOnlyStreams
-        return streamsList.mapNotNull {
-            (it.itagItem?.id ?: return@mapNotNull null) to it.content
-        }
+        return streamsList
+            .mapNotNull {
+                (it.itagItem?.id ?: return@mapNotNull null) to it.content
+            }.apply {
+                (streamInfo.dashMpdUrl ?: streamInfo.hlsUrl)?.let {
+                    this + (96 to it)
+                }
+            }
     }
 
     actual fun mergeAudioVideoDownload(filePath: String): DownloadProgress = DownloadProgress.failed("Not supported on JVM")

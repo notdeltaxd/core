@@ -1193,41 +1193,46 @@ class YouTube {
                             },
                     ),
             )
-        decodedSigResponse = decodedSigResponse.copy(
-            streamingData = decodedSigResponse.streamingData?.copy(
-                formats = decodedSigResponse.streamingData.formats?.let { formats ->
-                    val copy = formats.toMutableList()
-                    streamInfo.formats?.filterNotNull()?.filter {
-                        isManifestUrl(it.url ?: "")
-                    }?.forEach { manifest ->
-                        copy.add(
-                            PlayerResponse.StreamingData.Format(
-                                itag = manifest.formatId?.toInt() ?: 0,
-                                url = manifest.url,
-                                mimeType = "",
-                                bitrate = 0,
-                                width = manifest.width?.toInt(),
-                                height = manifest.height?.toInt(),
-                                contentLength = 0,
-                                quality = "",
-                                fps = 0,
-                                qualityLabel = "",
-                                averageBitrate = 0,
-                                audioQuality = "",
-                                approxDurationMs = "",
-                                audioSampleRate = 0,
-                                audioChannels = 0,
-                                loudnessDb = 0.0,
-                                lastModified = 0,
-                                signatureCipher = ""
-                            )
-                        )
-                    }
-                    copy.filter { it.itag != 0 }
-                    copy
-                }
+        decodedSigResponse =
+            decodedSigResponse.copy(
+                streamingData =
+                    decodedSigResponse.streamingData?.copy(
+                        formats =
+                            decodedSigResponse.streamingData.formats?.let { formats ->
+                                val copy = formats.toMutableList()
+                                streamInfo.formats
+                                    ?.filterNotNull()
+                                    ?.filter {
+                                        isManifestUrl(it.url ?: "")
+                                    }?.forEach { manifest ->
+                                        copy.add(
+                                            PlayerResponse.StreamingData.Format(
+                                                itag = manifest.formatId?.toInt() ?: 0,
+                                                url = manifest.url,
+                                                mimeType = "",
+                                                bitrate = 0,
+                                                width = manifest.width?.toInt(),
+                                                height = manifest.height?.toInt(),
+                                                contentLength = 0,
+                                                quality = "",
+                                                fps = 0,
+                                                qualityLabel = "",
+                                                averageBitrate = 0,
+                                                audioQuality = "",
+                                                approxDurationMs = "",
+                                                audioSampleRate = 0,
+                                                audioChannels = 0,
+                                                loudnessDb = 0.0,
+                                                lastModified = 0,
+                                                signatureCipher = "",
+                                            ),
+                                        )
+                                    }
+                                copy.filter { it.itag != 0 }
+                                copy
+                            },
+                    ),
             )
-        )
         listUrlSig.addAll(
             (
                 decodedSigResponse
@@ -1372,6 +1377,45 @@ class YouTube {
                             },
                     ),
             )
+        decodedSigResponse =
+            decodedSigResponse.copy(
+                streamingData =
+                    decodedSigResponse.streamingData?.copy(
+                        formats =
+                            decodedSigResponse.streamingData.formats?.let { formats ->
+                                val copy = formats.toMutableList()
+                                streamsList
+                                    .filter {
+                                        isManifestUrl(it.second)
+                                    }.forEach { manifest ->
+                                        copy.add(
+                                            PlayerResponse.StreamingData.Format(
+                                                itag = manifest.first,
+                                                url = manifest.second,
+                                                mimeType = "",
+                                                bitrate = 0,
+                                                width = if (manifest.first == 96) 1920 else 1080,
+                                                height = if (manifest.first == 96) 1080 else 720,
+                                                contentLength = 0,
+                                                quality = "",
+                                                fps = 0,
+                                                qualityLabel = "",
+                                                averageBitrate = 0,
+                                                audioQuality = "",
+                                                approxDurationMs = "",
+                                                audioSampleRate = 0,
+                                                audioChannels = 0,
+                                                loudnessDb = 0.0,
+                                                lastModified = 0,
+                                                signatureCipher = "",
+                                            ),
+                                        )
+                                    }
+                                copy.filter { it.itag != 0 }
+                                copy
+                            },
+                    ),
+            )
         listUrlSig.addAll(
             (
                 decodedSigResponse
@@ -1473,39 +1517,42 @@ class YouTube {
                                     playbackTracking?.copy(
                                         atrUrl =
                                             playbackTracking.atrUrl?.copy(
-                                                baseUrl = playbackTracking.atrUrl.baseUrl
-                                                    ?.toKmpUri()
-                                                    ?.buildUpon()
-                                                    ?.apply {
-                                                        if (fexp != null) {
-                                                            appendQueryParameter("fexp", fexp)
-                                                        }
-                                                    }?.build()
-                                                    ?.toString(),
+                                                baseUrl =
+                                                    playbackTracking.atrUrl.baseUrl
+                                                        ?.toKmpUri()
+                                                        ?.buildUpon()
+                                                        ?.apply {
+                                                            if (fexp != null) {
+                                                                appendQueryParameter("fexp", fexp)
+                                                            }
+                                                        }?.build()
+                                                        ?.toString(),
                                             ),
                                         videostatsPlaybackUrl =
                                             playbackTracking.videostatsPlaybackUrl?.copy(
-                                                baseUrl = playbackTracking.videostatsPlaybackUrl.baseUrl
-                                                    ?.toKmpUri()
-                                                    ?.buildUpon()
-                                                    ?.apply {
-                                                        if (fexp != null) {
-                                                            appendQueryParameter("fexp", fexp)
-                                                        }
-                                                    }?.build()
-                                                    ?.toString(),
+                                                baseUrl =
+                                                    playbackTracking.videostatsPlaybackUrl.baseUrl
+                                                        ?.toKmpUri()
+                                                        ?.buildUpon()
+                                                        ?.apply {
+                                                            if (fexp != null) {
+                                                                appendQueryParameter("fexp", fexp)
+                                                            }
+                                                        }?.build()
+                                                        ?.toString(),
                                             ),
                                         videostatsWatchtimeUrl =
                                             playbackTracking.videostatsWatchtimeUrl?.copy(
-                                                baseUrl = playbackTracking.videostatsWatchtimeUrl.baseUrl
-                                                    ?.toKmpUri()
-                                                    ?.buildUpon()
-                                                    ?.apply {
-                                                        if (fexp != null) {
-                                                            appendQueryParameter("fexp", fexp)
-                                                        }
-                                                    }?.build()
-                                                    ?.toString(),
+                                                baseUrl =
+                                                    playbackTracking.videostatsWatchtimeUrl.baseUrl
+                                                        ?.toKmpUri()
+                                                        ?.buildUpon()
+                                                        ?.apply {
+                                                            if (fexp != null) {
+                                                                appendQueryParameter("fexp", fexp)
+                                                            }
+                                                        }?.build()
+                                                        ?.toString(),
                                             ),
                                     ),
                             )

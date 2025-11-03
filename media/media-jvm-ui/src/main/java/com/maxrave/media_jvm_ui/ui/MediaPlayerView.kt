@@ -50,6 +50,7 @@ import org.freedesktop.gstreamer.swing.GstVideoComponent
 import org.koin.compose.koinInject
 import java.net.URI
 import java.util.concurrent.TimeUnit
+import javax.swing.BoxLayout
 import javax.swing.JPanel
 
 @Composable
@@ -94,8 +95,8 @@ fun MediaPlayerViewWithUrl(
             SwingPanel(
                 factory = {
                     JPanel().apply {
-                        background = java.awt.Color(0, 0, 0, 0)
-                        gsVideoComponent?.preferredSize = java.awt.Dimension(400, 300)
+                        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                        background = java.awt.Color(255, 255, 255, 0)
                         add(gsVideoComponent)
                     }
                 },
@@ -260,8 +261,8 @@ fun MediaPlayerViewWithSubtitleJvm(
                         SwingPanel(
                             factory = {
                                 JPanel().apply {
-                                    background = java.awt.Color(0, 0, 0, 0)
-                                    gsVideoComponent?.preferredSize = java.awt.Dimension(sizePx.first, sizePx.second)
+                                    layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                                    background = java.awt.Color(255, 255, 255, 0)
                                     add(gsVideoComponent)
                                 }
                             },
