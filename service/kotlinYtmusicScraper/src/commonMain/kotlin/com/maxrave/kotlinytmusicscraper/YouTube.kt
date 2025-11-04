@@ -51,6 +51,7 @@ import com.maxrave.kotlinytmusicscraper.models.sponsorblock.SkipSegments
 import com.maxrave.kotlinytmusicscraper.models.youtube.GhostResponse
 import com.maxrave.kotlinytmusicscraper.models.youtube.Transcript
 import com.maxrave.kotlinytmusicscraper.models.youtube.YouTubeInitialPage
+import com.maxrave.kotlinytmusicscraper.models.youtube.tryDecodeText
 import com.maxrave.kotlinytmusicscraper.pages.AlbumPage
 import com.maxrave.kotlinytmusicscraper.pages.ArtistPage
 import com.maxrave.kotlinytmusicscraper.pages.ArtistSection
@@ -2074,7 +2075,7 @@ class YouTube {
                         "&fmt=srv3",
                         "",
                     ) ?: "",
-                ).body<Transcript>()
+                ).body<Transcript>().tryDecodeText()
         val translateCaption =
             try {
                 ytMusic
@@ -2085,7 +2086,7 @@ class YouTube {
                                 "",
                             )
                         }&tlang=$preferLang",
-                    ).body<Transcript>()
+                    ).body<Transcript>().tryDecodeText()
             } catch (e: Exception) {
                 e.printStackTrace()
                 null

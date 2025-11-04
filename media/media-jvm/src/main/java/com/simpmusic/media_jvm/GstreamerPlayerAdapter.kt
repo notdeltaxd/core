@@ -191,95 +191,87 @@ class GstreamerPlayerAdapter(
 
     override fun play() {
         Logger.d(TAG, "▶️ play() called (current state: $internalState, playWhenReady: $internalPlayWhenReady)")
-        coroutineScope.launch {
-            when (internalState) {
-                InternalState.READY, InternalState.ENDED, InternalState.PAUSED -> {
-                    currentPlayer?.let { player ->
-                        Logger.d(TAG, "▶️ Play: Setting GStreamer state to PLAYING")
-                        player.setState(State.PLAYING)
-                        transitionToState(InternalState.PLAYING)
-                        internalPlayWhenReady = true
-                        // State change will be handled by stateChangedListener
-                    } ?: Logger.w(TAG, "Play called but currentPlayer is null")
-                }
-
-                InternalState.PREPARING -> {
-                    // Just set playWhenReady, will auto-play when ready
-                    if (!cachedIsLoading) {
-                        cachedIsLoading = true
-                        listeners.forEach { it.onIsLoadingChanged(true) }
-                    }
-                    Logger.d(TAG, "▶️ Play: During PREPARING - will auto-play when ready")
-                }
-
-                InternalState.PLAYING -> {
-                    // Already playing, update flag
+        when (internalState) {
+            InternalState.READY, InternalState.ENDED, InternalState.PAUSED -> {
+                currentPlayer?.let { player ->
+                    Logger.d(TAG, "▶️ Play: Setting GStreamer state to PLAYING")
+                    player.setState(State.PLAYING)
+                    transitionToState(InternalState.PLAYING)
                     internalPlayWhenReady = true
-                    cachedIsLoading = false
-                    Logger.d(TAG, "▶️ Play: Already playing")
-                }
+                    // State change will be handled by stateChangedListener
+                } ?: Logger.w(TAG, "Play called but currentPlayer is null")
+            }
 
-                else -> {
-                    Logger.w(TAG, "▶️ Play: Called in invalid state: $internalState")
+            InternalState.PREPARING -> {
+                // Just set playWhenReady, will auto-play when ready
+                if (!cachedIsLoading) {
+                    cachedIsLoading = true
+                    listeners.forEach { it.onIsLoadingChanged(true) }
                 }
+                Logger.d(TAG, "▶️ Play: During PREPARING - will auto-play when ready")
+            }
+
+            InternalState.PLAYING -> {
+                // Already playing, update flag
+                internalPlayWhenReady = true
+                cachedIsLoading = false
+                Logger.d(TAG, "▶️ Play: Already playing")
+            }
+
+            else -> {
+                Logger.w(TAG, "▶️ Play: Called in invalid state: $internalState")
             }
         }
     }
 
     override fun pause() {
         Logger.d(TAG, "⏸️ pause() called (current state: $internalState, playWhenReady: $internalPlayWhenReady)")
-        coroutineScope.launch {
-            currentPlayer?.pause()
-            when (internalState) {
-                InternalState.PLAYING, InternalState.READY -> {
-                    currentPlayer?.let { player ->
-                        Logger.d(TAG, "⏸️ Pause: Setting GStreamer state to PAUSED")
-                        player.setState(State.PAUSED)
-                        transitionToState(InternalState.PAUSED)
-                        internalPlayWhenReady = false
-                        // State change will be handled by stateChangedListener
-                    }
-                }
-
-                InternalState.PREPARING -> {
-                    // Just set playWhenReady to false
+        currentPlayer?.pause()
+        when (internalState) {
+            InternalState.PLAYING, InternalState.READY -> {
+                currentPlayer?.let { player ->
+                    Logger.d(TAG, "⏸️ Pause: Setting GStreamer state to PAUSED")
+                    player.setState(State.PAUSED)
+                    transitionToState(InternalState.PAUSED)
                     internalPlayWhenReady = false
-                    Logger.d(TAG, "⏸️ Pause: During PREPARING - will not auto-play")
+                    // State change will be handled by stateChangedListener
                 }
+            }
 
-                else -> {
-                    Logger.w(TAG, "⏸️ Pause: Called in invalid state: $internalState")
-                }
+            InternalState.PREPARING -> {
+                // Just set playWhenReady to false
+                internalPlayWhenReady = false
+                Logger.d(TAG, "⏸️ Pause: During PREPARING - will not auto-play")
+            }
+
+            else -> {
+                Logger.w(TAG, "⏸️ Pause: Called in invalid state: $internalState")
             }
         }
     }
 
     override fun stop() {
-        coroutineScope.launch {
-            currentPlayer?.let { player ->
-                Logger.d(TAG, "Stop called")
-                player.setState(State.NULL)
-                transitionToState(InternalState.IDLE)
-                stopPositionUpdates()
-                notifyEqualizerIntent(false)
-            }
+        currentPlayer?.let { player ->
+            Logger.d(TAG, "Stop called")
+            player.setState(State.NULL)
+            transitionToState(InternalState.IDLE)
+            stopPositionUpdates()
+            notifyEqualizerIntent(false)
         }
     }
 
     override fun seekTo(positionMs: Long) {
-        coroutineScope.launch {
-            currentPlayer?.let { player ->
-                try {
-                    val seekResult = player.seek(positionMs, TimeUnit.MILLISECONDS)
-                    if (seekResult) {
-                        cachedPosition = positionMs
-                        Logger.d(TAG, "Seeked to position: $positionMs")
-                    } else {
-                        Logger.w(TAG, "Seek failed to position: $positionMs")
-                    }
-                } catch (e: Exception) {
-                    Logger.e(TAG, "Seek exception: ${e.message}", e)
+        currentPlayer?.let { player ->
+            try {
+                val seekResult = player.seek(positionMs, TimeUnit.MILLISECONDS)
+                if (seekResult) {
+                    cachedPosition = positionMs
+                    Logger.d(TAG, "Seeked to position: $positionMs")
+                } else {
+                    Logger.w(TAG, "Seek failed to position: $positionMs")
                 }
+            } catch (e: Exception) {
+                Logger.e(TAG, "Seek exception: ${e.message}", e)
             }
         }
     }
@@ -290,18 +282,16 @@ class GstreamerPlayerAdapter(
     ) {
         if (mediaItemIndex !in playlist.indices) return
 
-        coroutineScope.launch {
-            val shouldPlay = internalPlayWhenReady
+        val shouldPlay = internalPlayWhenReady
 
-            // Cancel any ongoing load
-            currentLoadJob?.cancel()
+        // Cancel any ongoing load
+        currentLoadJob?.cancel()
 
-            // Load the new track
-            localCurrentMediaItemIndex = mediaItemIndex
-            currentPlayer?.pause()
-            currentPlayer = null
-            loadAndPlayTrackInternal(mediaItemIndex, positionMs, shouldPlay)
-        }
+        // Load the new track
+        localCurrentMediaItemIndex = mediaItemIndex
+        currentPlayer?.pause()
+        currentPlayer = null
+        loadAndPlayTrackInternal(mediaItemIndex, positionMs, shouldPlay)
     }
 
     override fun seekBack() {
@@ -897,41 +887,35 @@ class GstreamerPlayerAdapter(
         // Create new listeners
         val eosListener =
             Bus.EOS { _ ->
-                coroutineScope.launch {
-                    player.state = State.PAUSED
-                    Logger.d(TAG, "End of stream reached")
-                    transitionToState(InternalState.ENDED)
-                    runBlocking { pause() }
-                    handleTrackEndInternal()
-                }
+                player.state = State.PAUSED
+                Logger.d(TAG, "End of stream reached")
+                transitionToState(InternalState.ENDED)
+                runBlocking { pause() }
+                handleTrackEndInternal()
             }
 
         val durationListener =
             Bus.DURATION_CHANGED { _ ->
-                coroutineScope.launch {
-                    currentPlayer?.let { player ->
-                        if (duration > 0L) {
-                            val dur = player.playerBin.queryDuration(TimeUnit.MILLISECONDS)
-                            cachedDuration = if (dur != -1L) dur / 1000000 else cachedDuration
+                currentPlayer?.let { player ->
+                    if (duration > 0L) {
+                        val dur = player.playerBin.queryDuration(TimeUnit.MILLISECONDS)
+                        cachedDuration = if (dur != -1L) dur / 1000000 else cachedDuration
 //                        Logger.d(TAG, "Duration updated: $cachedDuration ms")
-                        }
                     }
                 }
             }
 
         val errorListener =
             Bus.ERROR { _, code, message ->
-                coroutineScope.launch {
-                    val error =
-                        PlayerError(
-                            errorCode = PlayerConstants.ERROR_CODE_TIMEOUT,
-                            errorCodeName = "GSTREAMER_ERROR",
-                            message = message ?: "Playback error (code: $code)",
-                        )
-                    Logger.e(TAG, "Playback error: $message")
-                    listeners.forEach { it.onPlayerError(error) }
-                    transitionToState(InternalState.ERROR)
-                }
+                val error =
+                    PlayerError(
+                        errorCode = PlayerConstants.ERROR_CODE_TIMEOUT,
+                        errorCodeName = "GSTREAMER_ERROR",
+                        message = message ?: "Playback error (code: $code)",
+                    )
+                Logger.e(TAG, "Playback error: $message")
+                listeners.forEach { it.onPlayerError(error) }
+                transitionToState(InternalState.ERROR)
             }
 
         val warningListener =
@@ -951,72 +935,56 @@ class GstreamerPlayerAdapter(
                     return@STATE_CHANGED
                 }
 
-                coroutineScope.launch {
-                    // Debounce rapid state changes
-                    val currentTime = System.currentTimeMillis()
-                    if (currentTime - lastStateChangeTime < stateChangeDebounceMs) {
-                        Logger.d(TAG, "State change debounced: $oldState -> $newState")
-                        return@launch
+                // Debounce rapid state changes
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastStateChangeTime < stateChangeDebounceMs) {
+                    Logger.d(TAG, "State change debounced: $oldState -> $newState")
+                    return@STATE_CHANGED
+                }
+                lastStateChangeTime = currentTime
+
+                Logger.d(TAG, "State changed: $oldState -> $newState (internal: $internalState)")
+
+                when (newState) {
+                    State.PLAYING -> {
+                        if (internalState != InternalState.PLAYING) {
+                            transitionToState(InternalState.PLAYING)
+                            notifyEqualizerIntent(true)
+                        }
                     }
-                    lastStateChangeTime = currentTime
 
-                    Logger.d(TAG, "State changed: $oldState -> $newState (internal: $internalState)")
-
-                    when (newState) {
-                        State.PLAYING -> {
-                            if (internalState != InternalState.PLAYING) {
-                                transitionToState(InternalState.PLAYING)
-                                notifyEqualizerIntent(true)
-                            }
-                        }
-
-                        State.PAUSED -> {
-                            // Only transition to READY if we were actually playing
-                            if (internalState == InternalState.PLAYING) {
-                                transitionToState(InternalState.READY)
-                                notifyEqualizerIntent(false)
-                            }
-                        }
-
-                        State.NULL -> {
+                    State.PAUSED -> {
+                        // Only transition to READY if we were actually playing
+                        if (internalState == InternalState.PLAYING) {
+                            transitionToState(InternalState.READY)
                             notifyEqualizerIntent(false)
-                            transitionToState(InternalState.IDLE)
                         }
+                    }
 
-                        else -> {
-                        }
+                    State.NULL -> {
+                        notifyEqualizerIntent(false)
+                        transitionToState(InternalState.IDLE)
+                    }
+
+                    else -> {
                     }
                 }
             }
 
         val bufferingListener =
             Bus.BUFFERING { _, percent ->
-                if (percent in 1..100) {
-//                    Logger.d(TAG, "Buffering: $percent%")
-                    cachedBufferedPosition = duration
-                    if (percent == 100) {
-                        currentPlayer?.let { player ->
-                            val dur = player.playerBin.queryDuration(TimeUnit.MILLISECONDS)
-                            if (dur > 0L) {
-                                cachedDuration = dur / 1000000
-                            }
-//                            Logger.d(TAG, "Duration updated: $cachedDuration ms")
-                        }
-                    }
-                }
+
             }
 
         val asyncDoneListener =
             Bus.ASYNC_DONE { _ ->
-                coroutineScope.launch {
-                    // Pipeline is ready, only auto-play if:
-                    // 1. We're in READY state (not already playing)
-                    // 2. playWhenReady is true
-                    // 3. We're not already transitioning
-                    if (internalState == InternalState.READY && internalPlayWhenReady) {
-                        Logger.d(TAG, "ASYNC_DONE: Auto-starting playback")
-                        currentPlayer?.setState(State.PLAYING)
-                    }
+                // Pipeline is ready, only auto-play if:
+                // 1. We're in READY state (not already playing)
+                // 2. playWhenReady is true
+                // 3. We're not already transitioning
+                if (internalState == InternalState.READY && internalPlayWhenReady) {
+                    Logger.d(TAG, "ASYNC_DONE: Auto-starting playback")
+                    currentPlayer?.setState(State.PLAYING)
                 }
             }
 
@@ -1418,7 +1386,9 @@ data class GstreamerPlayer(
     fun seek(
         position: Long,
         unit: TimeUnit,
-    ): Boolean = playerBin.seek(position, unit)
+    ): Boolean = playerBin.seek(1.0, Format.TIME, EnumSet.of(SeekFlags.FLUSH,
+        SeekFlags.ACCURATE), SeekType.SET, TimeUnit.NANOSECONDS.convert(position,
+        unit), SeekType.NONE, -1)
 
     fun seek(
         rate: Double,
