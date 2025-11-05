@@ -191,72 +191,78 @@ class GstreamerPlayerAdapter(
 
     override fun play() {
         Logger.d(TAG, "▶️ play() called (current state: $internalState, playWhenReady: $internalPlayWhenReady)")
-        when (internalState) {
-            InternalState.READY, InternalState.ENDED, InternalState.PAUSED -> {
-                currentPlayer?.let { player ->
-                    Logger.d(TAG, "▶️ Play: Setting GStreamer state to PLAYING")
-                    player.setState(State.PLAYING)
-                    transitionToState(InternalState.PLAYING)
-                    internalPlayWhenReady = true
-                    // State change will be handled by stateChangedListener
-                } ?: Logger.w(TAG, "Play called but currentPlayer is null")
-            }
-
-            InternalState.PREPARING -> {
-                // Just set playWhenReady, will auto-play when ready
-                if (!cachedIsLoading) {
-                    cachedIsLoading = true
-                    listeners.forEach { it.onIsLoadingChanged(true) }
+        coroutineScope.launch {
+            when (internalState) {
+                InternalState.READY, InternalState.ENDED, InternalState.PAUSED -> {
+                    currentPlayer?.let { player ->
+                        Logger.d(TAG, "▶️ Play: Setting GStreamer state to PLAYING")
+                        player.setState(State.PLAYING)
+                        transitionToState(InternalState.PLAYING)
+                        internalPlayWhenReady = true
+                        // State change will be handled by stateChangedListener
+                    } ?: Logger.w(TAG, "Play called but currentPlayer is null")
                 }
-                Logger.d(TAG, "▶️ Play: During PREPARING - will auto-play when ready")
-            }
 
-            InternalState.PLAYING -> {
-                // Already playing, update flag
-                internalPlayWhenReady = true
-                cachedIsLoading = false
-                Logger.d(TAG, "▶️ Play: Already playing")
-            }
+                InternalState.PREPARING -> {
+                    // Just set playWhenReady, will auto-play when ready
+                    if (!cachedIsLoading) {
+                        cachedIsLoading = true
+                        listeners.forEach { it.onIsLoadingChanged(true) }
+                    }
+                    Logger.d(TAG, "▶️ Play: During PREPARING - will auto-play when ready")
+                }
 
-            else -> {
-                Logger.w(TAG, "▶️ Play: Called in invalid state: $internalState")
+                InternalState.PLAYING -> {
+                    // Already playing, update flag
+                    internalPlayWhenReady = true
+                    cachedIsLoading = false
+                    Logger.d(TAG, "▶️ Play: Already playing")
+                }
+
+                else -> {
+                    Logger.w(TAG, "▶️ Play: Called in invalid state: $internalState")
+                }
             }
         }
     }
 
     override fun pause() {
         Logger.d(TAG, "⏸️ pause() called (current state: $internalState, playWhenReady: $internalPlayWhenReady)")
-        currentPlayer?.pause()
-        when (internalState) {
-            InternalState.PLAYING, InternalState.READY -> {
-                currentPlayer?.let { player ->
-                    Logger.d(TAG, "⏸️ Pause: Setting GStreamer state to PAUSED")
-                    player.setState(State.PAUSED)
-                    transitionToState(InternalState.PAUSED)
-                    internalPlayWhenReady = false
-                    // State change will be handled by stateChangedListener
+        coroutineScope.launch {
+            currentPlayer?.pause()
+            when (internalState) {
+                InternalState.PLAYING, InternalState.READY -> {
+                    currentPlayer?.let { player ->
+                        Logger.d(TAG, "⏸️ Pause: Setting GStreamer state to PAUSED")
+                        player.setState(State.PAUSED)
+                        transitionToState(InternalState.PAUSED)
+                        internalPlayWhenReady = false
+                        // State change will be handled by stateChangedListener
+                    }
                 }
-            }
 
-            InternalState.PREPARING -> {
-                // Just set playWhenReady to false
-                internalPlayWhenReady = false
-                Logger.d(TAG, "⏸️ Pause: During PREPARING - will not auto-play")
-            }
+                InternalState.PREPARING -> {
+                    // Just set playWhenReady to false
+                    internalPlayWhenReady = false
+                    Logger.d(TAG, "⏸️ Pause: During PREPARING - will not auto-play")
+                }
 
-            else -> {
-                Logger.w(TAG, "⏸️ Pause: Called in invalid state: $internalState")
+                else -> {
+                    Logger.w(TAG, "⏸️ Pause: Called in invalid state: $internalState")
+                }
             }
         }
     }
 
     override fun stop() {
-        currentPlayer?.let { player ->
-            Logger.d(TAG, "Stop called")
-            player.setState(State.NULL)
-            transitionToState(InternalState.IDLE)
-            stopPositionUpdates()
-            notifyEqualizerIntent(false)
+        coroutineScope.launch {
+            currentPlayer?.let { player ->
+                Logger.d(TAG, "Stop called")
+                player.setState(State.NULL)
+                transitionToState(InternalState.IDLE)
+                stopPositionUpdates()
+                notifyEqualizerIntent(false)
+            }
         }
     }
 
@@ -282,16 +288,18 @@ class GstreamerPlayerAdapter(
     ) {
         if (mediaItemIndex !in playlist.indices) return
 
-        val shouldPlay = internalPlayWhenReady
+        coroutineScope.launch {
+            val shouldPlay = internalPlayWhenReady
 
-        // Cancel any ongoing load
-        currentLoadJob?.cancel()
+            // Cancel any ongoing load
+            currentLoadJob?.cancel()
 
-        // Load the new track
-        localCurrentMediaItemIndex = mediaItemIndex
-        currentPlayer?.pause()
-        currentPlayer = null
-        loadAndPlayTrackInternal(mediaItemIndex, positionMs, shouldPlay)
+            // Load the new track
+            localCurrentMediaItemIndex = mediaItemIndex
+            currentPlayer?.pause()
+            currentPlayer = null
+            loadAndPlayTrackInternal(mediaItemIndex, positionMs, shouldPlay)
+        }
     }
 
     override fun seekBack() {

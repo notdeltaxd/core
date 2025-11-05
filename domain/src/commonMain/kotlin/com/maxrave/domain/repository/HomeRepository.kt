@@ -9,11 +9,20 @@ import com.maxrave.domain.utils.Resource
 import kotlinx.coroutines.flow.Flow
 
 interface HomeRepository {
+    /**
+     * @return Pair of continueParams and HomeItem List
+     */
     fun getHomeData(
         params: String? = null,
         viewString: String,
         songString: String,
-    ): Flow<Resource<List<HomeItem>>>
+    ): Flow<Resource<Pair<String?, List<HomeItem>>>>
+
+    fun getHomeDataContinue(
+        continueParam: String,
+        viewString: String,
+        songString: String,
+    ): Flow<Resource<Pair<String?, List<HomeItem>>>>
 
     fun getNewRelease(
         newReleaseString: String,

@@ -272,8 +272,21 @@ internal class SimpleMediaSessionCallback(
                                 ).lastOrNull()
                                 ?.data
                         listHomeItem.clear()
-                        listHomeItem.addAll(temp ?: emptyList())
-                        temp?.map {
+                        listHomeItem.addAll(temp?.second ?: emptyList())
+                        if (!temp?.first.isNullOrEmpty()) {
+                            var continueParam = temp.first
+                            while (continueParam != null) {
+                                homeRepository.getHomeDataContinue(
+                                    continueParam,
+                                    viewString = context.getString(R.string.view_count),
+                                    songString = context.getString(R.string.song),
+                                ).lastOrNull().let {
+                                    listHomeItem.addAll(it?.data?.second ?: emptyList())
+                                    continueParam = it?.data?.first
+                                }
+                            }
+                        }
+                        listHomeItem.map {
                             browsableMediaItem(
                                 "$HOME/${it.title}",
                                 it.title,
@@ -281,7 +294,7 @@ internal class SimpleMediaSessionCallback(
                                 null,
                                 MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
                             )
-                        } ?: emptyList()
+                        }
                     }
 
                     else -> {

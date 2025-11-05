@@ -2116,7 +2116,7 @@ internal class MediaServiceHandlerImpl(
         if (shouldOpen) sendOpenEqualizerIntent() else sendCloseEqualizerIntent()
     }
 
-    override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+    override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean, list: List<GenericMediaItem>) {
         when (shuffleModeEnabled) {
             true -> {
                 _controlState.value = _controlState.value.copy(isShuffle = true)
@@ -2126,6 +2126,7 @@ internal class MediaServiceHandlerImpl(
                 _controlState.value = _controlState.value.copy(isShuffle = false)
             }
         }
+        reorderShuffledQueue(list)
         updateNextPreviousTrackAvailability()
     }
 
@@ -2151,6 +2152,29 @@ internal class MediaServiceHandlerImpl(
             startBufferedUpdate()
         } else {
             stopBufferedUpdate()
+        }
+    }
+
+    override fun onTimelineChanged(list: List<GenericMediaItem>, reason: String) {
+        super.onTimelineChanged(list, reason)
+        Logger.d(TAG, "onTimelineChanged: Reason: $reason, Items: ${list.size}")
+        reorderShuffledQueue(list)
+    }
+
+    private fun reorderShuffledQueue(list: List<GenericMediaItem>) {
+        val listTrack = queueData.value.data.listTracks
+        list.mapNotNull {
+            listTrack.firstOrNull { track -> track.videoId == it.mediaId }
+        }.let { sorted ->
+            if (sorted.size != listTrack.size) return
+            Logger.d(TAG, "Reordering shuffled queue: ${sorted.map { it.title }}")
+            _queueData.update {
+                it.copy(
+                    data = it.data.copy(
+                        listTracks = sorted,
+                    ),
+                )
+            }
         }
     }
 }

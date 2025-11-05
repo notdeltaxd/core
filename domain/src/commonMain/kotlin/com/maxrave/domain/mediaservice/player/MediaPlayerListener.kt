@@ -17,13 +17,17 @@ interface MediaPlayerListener {
         reason: Int,
     ) {}
 
+    fun onTimelineChanged(
+        list: List<GenericMediaItem>, reason: String
+    ) {}
+
     fun onTracksChanged(tracks: GenericTracks) {}
 
     fun onPlayerError(error: PlayerError) {}
 
     fun shouldOpenOrCloseEqualizerIntent(shouldOpen: Boolean) {}
 
-    fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {}
+    fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean, list: List<GenericMediaItem>) {}
 
     fun onRepeatModeChanged(repeatMode: Int) {}
 

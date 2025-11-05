@@ -32,7 +32,7 @@ internal class HomeRepositoryImpl(
         params: String?,
         viewString: String,
         songString: String,
-    ): Flow<Resource<List<HomeItem>>> =
+    ): Flow<Resource<Pair<String?, List<HomeItem>>>> =
         flow {
             runCatching {
                 val limit = dataStoreManager.homeLimit.first()
@@ -108,7 +108,7 @@ internal class HomeRepositoryImpl(
                                 dataStoreManager.putString("AccountThumbUrl", accountThumbUrl)
                             }
                         }
-                        var continueParam =
+                        val continueParam =
                             result.contents
                                 ?.singleColumnBrowseResultsRenderer
                                 ?.tabs
@@ -139,43 +139,74 @@ internal class HomeRepositoryImpl(
                                 songString,
                             ),
                         )
-                        var count = 0
-                        while (count < limit && continueParam != null) {
-                            youTube
-                                .customQuery(browseId = "", continuation = continueParam)
-                                .onSuccess { response ->
-                                    continueParam =
-                                        response.continuationContents
-                                            ?.sectionListContinuation
-                                            ?.continuations
-                                            ?.get(
-                                                0,
-                                            )?.nextContinuationData
-                                            ?.continuation
-                                    Logger.d("Repository", "continueParam: $continueParam")
-                                    val dataContinue =
-                                        response.continuationContents?.sectionListContinuation?.contents
-                                    list.addAll(
-                                        parseMixedContent(
-                                            dataContinue,
-                                            viewString,
-                                            songString,
-                                        ),
-                                    )
-                                    count++
-                                    Logger.d("Repository", "count: $count")
-                                }.onFailure {
-                                    Logger.e("Repository", "Error: ${it.message}")
-                                    count++
-                                }
-                        }
+//                        var count = 0
+//                        while (count < limit && continueParam != null) {
+//                            youTube
+//                                .customQuery(browseId = "", continuation = continueParam)
+//                                .onSuccess { response ->
+//                                    continueParam =
+//                                        response.continuationContents
+//                                            ?.sectionListContinuation
+//                                            ?.continuations
+//                                            ?.get(
+//                                                0,
+//                                            )?.nextContinuationData
+//                                            ?.continuation
+//                                    Logger.d("Repository", "continueParam: $continueParam")
+//                                    val dataContinue =
+//                                        response.continuationContents?.sectionListContinuation?.contents
+//                                    list.addAll(
+//                                        parseMixedContent(
+//                                            dataContinue,
+//                                            viewString,
+//                                            songString,
+//                                        ),
+//                                    )
+//                                    count++
+//                                    Logger.d("Repository", "count: $count")
+//                                }.onFailure {
+//                                    Logger.e("Repository", "Error: ${it.message}")
+//                                    count++
+//                                }
+//                        }
                         Logger.d("Repository", "List size: ${list.size}")
-                        emit(Resource.Success<List<HomeItem>>(list.toList()))
+                        emit(Resource.Success(continueParam to list.toList()))
                     }.onFailure { error ->
-                        emit(Resource.Error<List<HomeItem>>(error.message.toString()))
+                        emit(Resource.Error<Pair<String?, List<HomeItem>>>(error.message.toString()))
                     }
             }
         }.flowOn(Dispatchers.IO)
+
+    override fun getHomeDataContinue(
+        continueParam: String,
+        viewString: String,
+        songString: String
+    ): Flow<Resource<Pair<String?, List<HomeItem>>>> = flow {
+        youTube
+            .customQuery(browseId = "", continuation = continueParam)
+            .onSuccess { response ->
+                val newContinueParam =
+                    response.continuationContents
+                        ?.sectionListContinuation
+                        ?.continuations
+                        ?.get(
+                            0,
+                        )?.nextContinuationData
+                        ?.continuation
+                Logger.d("Repository", "continueParam: $continueParam")
+                val dataContinue =
+                    response.continuationContents?.sectionListContinuation?.contents
+                val list =
+                    parseMixedContent(
+                        dataContinue,
+                        viewString,
+                        songString,
+                    )
+                emit(Resource.Success(newContinueParam to list))
+            }.onFailure {
+                emit(Resource.Error<Pair<String?, List<HomeItem>>>(it.message.toString()))
+            }
+    }.flowOn(Dispatchers.IO)
 
     override fun getNewRelease(
         newReleaseString: String,
