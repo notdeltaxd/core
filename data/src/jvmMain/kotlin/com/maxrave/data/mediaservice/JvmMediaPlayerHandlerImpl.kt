@@ -316,21 +316,22 @@ class JvmMediaPlayerHandlerImpl(
                         Logger.w(TAG, "Playback current speed: ${player.playbackParameters.speed}, Pitch: ${player.playbackParameters.pitch}")
                     }
                 }
-            val discordRPCEnabledJob = launch {
-                dataStoreManager.richPresenceEnabled.collectLatest {
-                    if (it == TRUE && discordRPC == null) {
-                        discordRPC = DiscordRPC(dataStoreManager.discordToken.first())
-                        nowPlayingState.value.songEntity?.let { song ->
-                            discordRPC?.updateSong(song)
+            val discordRPCEnabledJob =
+                launch {
+                    dataStoreManager.richPresenceEnabled.collectLatest {
+                        if (it == TRUE && discordRPC == null) {
+                            discordRPC = DiscordRPC(dataStoreManager.discordToken.first())
+                            nowPlayingState.value.songEntity?.let { song ->
+                                discordRPC?.updateSong(song)
+                            }
+                        } else if (it == FALSE) {
+                            if (discordRPC?.isRpcRunning() == true) {
+                                discordRPC?.closeRPC()
+                            }
+                            discordRPC = null
                         }
-                    } else if (it == FALSE) {
-                        if (discordRPC?.isRpcRunning() == true) {
-                            discordRPC?.closeRPC()
-                        }
-                        discordRPC = null
                     }
                 }
-            }
             controlStateJob.join()
             skipSegmentsJob.join()
             playbackJob.join()
@@ -657,6 +658,7 @@ class JvmMediaPlayerHandlerImpl(
                 Logger.w(TAG, "onPlayerEvent: UpdateVolume ${playerEvent.newVolume}")
                 player.volume = playerEvent.newVolume
             }
+
             PlayerEvent.Backward -> player.seekBack()
             PlayerEvent.Forward -> player.seekForward()
             PlayerEvent.PlayPause -> {
@@ -877,6 +879,8 @@ class JvmMediaPlayerHandlerImpl(
     }
 
     override fun currentSongIndex(): Int = player.currentMediaItemIndex
+
+    override fun currentOrderIndex(): Int = player.currentMediaItemIndex
 
     override suspend fun swap(
         from: Int,
@@ -1970,7 +1974,7 @@ class JvmMediaPlayerHandlerImpl(
         super.onVolumeChanged(volume)
         _controlState.update {
             it.copy(
-                volume = volume
+                volume = volume,
             )
         }
     }
@@ -2111,7 +2115,10 @@ class JvmMediaPlayerHandlerImpl(
         if (shouldOpen) sendOpenEqualizerIntent() else sendCloseEqualizerIntent()
     }
 
-    override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+    override fun onShuffleModeEnabledChanged(
+        shuffleModeEnabled: Boolean,
+        list: List<GenericMediaItem>,
+    ) {
         when (shuffleModeEnabled) {
             true -> {
                 _controlState.value = _controlState.value.copy(isShuffle = true)

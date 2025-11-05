@@ -65,6 +65,9 @@ interface MediaPlayerHandler {
 
     fun currentSongIndex(): Int
 
+    // Index of the currently playing item in the current queue data (shuffled or not)
+    fun currentOrderIndex(): Int
+
     suspend fun swap(
         from: Int,
         to: Int,

@@ -140,7 +140,7 @@ internal class MediaServiceHandlerImpl(
                 isNextAvailable = player.hasNextMediaItem(),
                 isPreviousAvailable = player.hasPreviousMediaItem(),
                 isCrossfading = false,
-                volume = 1f
+                volume = 1f,
             ),
         )
 
@@ -327,21 +327,22 @@ internal class MediaServiceHandlerImpl(
                         Logger.w(TAG, "Playback current speed: ${player.playbackParameters.speed}, Pitch: ${player.playbackParameters.pitch}")
                     }
                 }
-            val discordRPCEnabledJob = launch {
-                dataStoreManager.richPresenceEnabled.collectLatest {
-                    if (it == TRUE && discordRPC == null) {
-                        discordRPC = DiscordRPC(dataStoreManager.discordToken.first())
-                        nowPlayingState.value.songEntity?.let { song ->
-                            discordRPC?.updateSong(song)
+            val discordRPCEnabledJob =
+                launch {
+                    dataStoreManager.richPresenceEnabled.collectLatest {
+                        if (it == TRUE && discordRPC == null) {
+                            discordRPC = DiscordRPC(dataStoreManager.discordToken.first())
+                            nowPlayingState.value.songEntity?.let { song ->
+                                discordRPC?.updateSong(song)
+                            }
+                        } else if (it == FALSE) {
+                            if (discordRPC?.isRpcRunning() == true) {
+                                discordRPC?.closeRPC()
+                            }
+                            discordRPC = null
                         }
-                    } else if (it == FALSE) {
-                        if (discordRPC?.isRpcRunning() == true) {
-                            discordRPC?.closeRPC()
-                        }
-                        discordRPC = null
                     }
                 }
-            }
             controlStateJob.join()
             skipSegmentsJob.join()
             playbackJob.join()
@@ -454,6 +455,7 @@ internal class MediaServiceHandlerImpl(
                     is Resource.Success -> {
                         _skipSegments.value = response.data
                     }
+
                     is Resource.Error -> {
                         Logger.e(TAG, "getSkipSegments: ${response.message}")
                         _skipSegments.value = null
@@ -693,10 +695,12 @@ internal class MediaServiceHandlerImpl(
                 resetCrossfade()
                 player.seekToNext()
             }
+
             PlayerEvent.Previous -> {
                 resetCrossfade()
                 player.seekToPrevious()
             }
+
             PlayerEvent.Stop -> {
                 stopProgressUpdate()
                 player.stop()
@@ -789,6 +793,7 @@ internal class MediaServiceHandlerImpl(
                             addMediaItem(currentSong.toGenericMediaItem(), playWhenReady = true)
                             loadPlaylistOrAlbum(0)
                         }
+
                         else -> {
                             Logger.e(TAG, "toggleRadio: ${res.message}")
                         }
@@ -1163,6 +1168,7 @@ internal class MediaServiceHandlerImpl(
                             )
                         }
                     }
+
                     is Resource.Error -> {
                         Logger.d("Check Related", "getRelated: ${response.message}")
                         _queueData.update {
@@ -1608,6 +1614,15 @@ internal class MediaServiceHandlerImpl(
             }
     }
 
+    override fun currentOrderIndex(): Int =
+        if (player.shuffleModeEnabled) {
+            queueData.value.data.listTracks.indexOfLast {
+                it.videoId == player.currentMediaItem?.mediaId
+            }
+        } else {
+            currentSongIndex()
+        }
+
     override fun setCurrentSongIndex(index: Int) {
         _currentSongIndex.value = index
     }
@@ -1757,6 +1772,7 @@ internal class MediaServiceHandlerImpl(
             SONG_CLICK, VIDEO_CLICK, SHARE -> {
                 getRelated(track.videoId)
             }
+
             PLAYLIST_CLICK, ALBUM_CLICK, RADIO_CLICK -> {
                 loadPlaylistOrAlbum(index)
             }
@@ -2005,14 +2021,17 @@ internal class MediaServiceHandlerImpl(
                 _simpleMediaState.value = SimpleMediaState.Initial
                 Logger.d(TAG, "onPlaybackStateChanged: Idle")
             }
+
             PlayerConstants.STATE_ENDED -> {
                 _simpleMediaState.value = SimpleMediaState.Ended
                 Logger.d(TAG, "onPlaybackStateChanged: Ended")
             }
+
             PlayerConstants.STATE_READY -> {
                 Logger.d(TAG, "onPlaybackStateChanged: Ready")
                 _simpleMediaState.value = SimpleMediaState.Ready(player.duration)
             }
+
             else -> {
                 if (current >= loaded) {
                     _simpleMediaState.value = SimpleMediaState.Buffering(player.currentPosition)
@@ -2116,7 +2135,10 @@ internal class MediaServiceHandlerImpl(
         if (shouldOpen) sendOpenEqualizerIntent() else sendCloseEqualizerIntent()
     }
 
-    override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean, list: List<GenericMediaItem>) {
+    override fun onShuffleModeEnabledChanged(
+        shuffleModeEnabled: Boolean,
+        list: List<GenericMediaItem>,
+    ) {
         when (shuffleModeEnabled) {
             true -> {
                 _controlState.value = _controlState.value.copy(isShuffle = true)
@@ -2136,9 +2158,11 @@ internal class MediaServiceHandlerImpl(
             PlayerConstants.REPEAT_MODE_OFF ->
                 _controlState.value =
                     _controlState.value.copy(repeatState = RepeatState.None)
+
             PlayerConstants.REPEAT_MODE_ONE ->
                 _controlState.value =
                     _controlState.value.copy(repeatState = RepeatState.One)
+
             PlayerConstants.REPEAT_MODE_ALL ->
                 _controlState.value =
                     _controlState.value.copy(repeatState = RepeatState.All)
@@ -2155,7 +2179,10 @@ internal class MediaServiceHandlerImpl(
         }
     }
 
-    override fun onTimelineChanged(list: List<GenericMediaItem>, reason: String) {
+    override fun onTimelineChanged(
+        list: List<GenericMediaItem>,
+        reason: String,
+    ) {
         super.onTimelineChanged(list, reason)
         Logger.d(TAG, "onTimelineChanged: Reason: $reason, Items: ${list.size}")
         reorderShuffledQueue(list)
@@ -2163,19 +2190,21 @@ internal class MediaServiceHandlerImpl(
 
     private fun reorderShuffledQueue(list: List<GenericMediaItem>) {
         val listTrack = queueData.value.data.listTracks
-        list.mapNotNull {
-            listTrack.firstOrNull { track -> track.videoId == it.mediaId }
-        }.let { sorted ->
-            if (sorted.size != listTrack.size) return
-            Logger.d(TAG, "Reordering shuffled queue: ${sorted.map { it.title }}")
-            _queueData.update {
-                it.copy(
-                    data = it.data.copy(
-                        listTracks = sorted,
-                    ),
-                )
+        list
+            .mapNotNull {
+                listTrack.firstOrNull { track -> track.videoId == it.mediaId }
+            }.let { sorted ->
+                if (sorted.size != listTrack.size) return
+                Logger.d(TAG, "Reordering shuffled queue: ${sorted.map { it.title }}")
+                _queueData.update {
+                    it.copy(
+                        data =
+                            it.data.copy(
+                                listTracks = sorted,
+                            ),
+                    )
+                }
             }
-        }
     }
 }
 

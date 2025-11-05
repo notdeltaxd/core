@@ -93,9 +93,12 @@ class ExoPlayerAdapter(
         exoPlayer.replaceMediaItem(index, mediaItem.toMedia3MediaItem())
     }
 
-    override fun getMediaItemAt(index: Int): GenericMediaItem? = if (index in 0..<exoPlayer.mediaItemCount) {
-        exoPlayer.getMediaItemAt(index).toGenericMediaItem()
-    } else null
+    override fun getMediaItemAt(index: Int): GenericMediaItem? =
+        if (index in 0..<exoPlayer.mediaItemCount) {
+            exoPlayer.getMediaItemAt(index).toGenericMediaItem()
+        } else {
+            null
+        }
 
     // Playback state properties
     override val isPlaying: Boolean get() = exoPlayer.isPlaying
@@ -171,7 +174,10 @@ class ExoPlayerAdapter(
 
     // Internal ExoPlayer listener that converts events to generic events
     private inner class ExoPlayerListenerImpl : Player.Listener {
-        override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+        override fun onTimelineChanged(
+            timeline: Timeline,
+            reason: Int,
+        ) {
             super.onTimelineChanged(timeline, reason)
             val list = mutableListOf<GenericMediaItem>()
             val s = exoPlayer.shuffleModeEnabled
@@ -187,22 +193,26 @@ class ExoPlayerAdapter(
                         Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED -> "TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED"
                         Player.TIMELINE_CHANGE_REASON_SOURCE_UPDATE -> "TIMELINE_CHANGE_REASON_SOURCE_UPDATE"
                         else -> "Unknown"
-                    }
+                    },
                 )
             }
         }
+
         override fun onPlaybackStateChanged(playbackState: Int) {
             val domainState =
                 when (playbackState) {
                     Player.STATE_IDLE -> {
                         PlayerConstants.STATE_IDLE
                     }
+
                     Player.STATE_ENDED -> {
                         PlayerConstants.STATE_ENDED
                     }
+
                     Player.STATE_READY -> {
                         PlayerConstants.STATE_READY
                     }
+
                     else -> {
                         playbackState
                     }
@@ -276,7 +286,7 @@ class ExoPlayerAdapter(
 
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
             val list = mutableListOf<GenericMediaItem>()
-            val s = exoPlayer.shuffleModeEnabled
+            val s = shuffleModeEnabled
             var i = exoPlayer.currentTimeline.getFirstWindowIndex(s)
             while (i != C.INDEX_UNSET) {
                 getMediaItemAt(i)?.let { list.add(it) }
