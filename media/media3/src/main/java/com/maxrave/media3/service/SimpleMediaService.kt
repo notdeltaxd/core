@@ -2,17 +2,26 @@ package com.maxrave.media3.service
 
 import android.app.Activity
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Binder
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.session.*
+import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.MediaController
+import androidx.media3.session.MediaLibraryService
+import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import com.maxrave.common.Config
 import com.maxrave.common.MEDIA_NOTIFICATION
+import com.maxrave.domain.data.player.GenericCommandButton
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.logger.Logger
 import com.maxrave.media3.R
@@ -38,6 +47,80 @@ internal class SimpleMediaService :
     private val simpleMediaServiceHandler: MediaPlayerHandler by inject<MediaPlayerHandler>()
 
     private val binder = MusicBinder()
+
+    private var invincibility: Invincibility? = null
+
+    private val handler = Handler(Looper.getMainLooper())
+
+    private inner class Invincibility :
+        BroadcastReceiver(),
+        Runnable {
+        private var isStarted = false
+        private val intervalMs = 30_000L
+
+        override fun onReceive(
+            context: Context?,
+            intent: Intent?,
+        ) {
+            Logger.d("Invincibility", "Received intent: ${intent?.action}")
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_ON -> handler.post(this)
+                Intent.ACTION_SCREEN_OFF -> {
+                    handler.removeCallbacks(this)
+                    Logger.d("Invincibility", "Screen off detected, updating notification")
+                    val controllerState = simpleMediaServiceHandler.controlState.value
+                    simpleMediaServiceHandler.onUpdateNotification(
+                        listOf(
+                            GenericCommandButton.Like(controllerState.isLiked),
+                            GenericCommandButton.Repeat(repeatState = controllerState.repeatState),
+                            GenericCommandButton.Radio,
+                            GenericCommandButton.Shuffle(isShuffled = controllerState.isShuffle),
+                        ),
+                    )
+                }
+            }
+        }
+
+        @Synchronized
+        fun start() {
+            if (!isStarted) {
+                Logger.d("Invincibility", "Starting invincibility")
+                isStarted = true
+                handler.postDelayed(this, intervalMs)
+                registerReceiver(
+                    this,
+                    IntentFilter().apply {
+                        addAction(Intent.ACTION_SCREEN_ON)
+                        addAction(Intent.ACTION_SCREEN_OFF)
+                    },
+                )
+            }
+        }
+
+        @Synchronized
+        fun stop() {
+            if (isStarted) {
+                Logger.d("Invincibility", "Stopping invincibility")
+                handler.removeCallbacks(this)
+                unregisterReceiver(this)
+                isStarted = false
+            }
+        }
+
+        override fun run() {
+            Logger.d("Invincibility", "Invincibility heartbeat - updating notification")
+            val controllerState = simpleMediaServiceHandler.controlState.value
+            simpleMediaServiceHandler.onUpdateNotification(
+                listOf(
+                    GenericCommandButton.Like(controllerState.isLiked),
+                    GenericCommandButton.Repeat(repeatState = controllerState.repeatState),
+                    GenericCommandButton.Radio,
+                    GenericCommandButton.Shuffle(isShuffled = controllerState.isShuffle),
+                ),
+            )
+            handler.postDelayed(this, intervalMs)
+        }
+    }
 
     inner class MusicBinder : Binder() {
         val service: SimpleMediaService
@@ -67,6 +150,8 @@ internal class SimpleMediaService :
     override fun onCreate() {
         super.onCreate()
         Logger.w("Service", "Simple Media Service Created")
+        invincibility = Invincibility()
+        invincibility?.start()
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(
                 this,
@@ -121,6 +206,8 @@ internal class SimpleMediaService :
     @UnstableApi
     fun release() {
         Logger.w("Service", "Starting release process")
+        invincibility?.stop()
+        invincibility = null
         runBlocking {
             try {
                 // Release MediaSession and Player
