@@ -182,6 +182,12 @@ class GstreamerPlayerAdapter(
     private val playlist = mutableListOf<GenericMediaItem>()
     private var localCurrentMediaItemIndex = -1
 
+    // Shuffle management
+    // Maps original playlist index -> shuffled position
+    private var shuffleIndices = mutableListOf<Int>()
+    // Maps shuffled position -> original playlist index
+    private var shuffleOrder = mutableListOf<Int>()
+
     // Loading management
     private var currentLoadJob: Job? = null
 
@@ -347,12 +353,28 @@ class GstreamerPlayerAdapter(
             playlist.add(mediaItem)
             localCurrentMediaItemIndex = 0
 
+            // Update shuffle order if enabled
+            if (internalShuffleModeEnabled) {
+                createShuffleOrder()
+            }
+
+            // Notify timeline changed
+            notifyTimelineChanged("TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED")
+
             loadAndPlayTrackInternal(0, 0, internalPlayWhenReady)
         }
     }
 
     override fun addMediaItem(mediaItem: GenericMediaItem) {
         playlist.add(mediaItem)
+
+        // Update shuffle order if enabled
+        if (internalShuffleModeEnabled) {
+            createShuffleOrder()
+        }
+
+        // Notify timeline changed
+        notifyTimelineChanged("TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED")
 
         if (playlist.size - 1 - currentMediaItemIndex <= maxPrecacheCount) {
             // If added item is within precache range, trigger precaching
@@ -368,12 +390,32 @@ class GstreamerPlayerAdapter(
         mediaItem: GenericMediaItem,
     ) {
         if (index in 0..playlist.size) {
+            // Store current index before modifications for shuffle logic
+            val currentIndexBeforeInsert = localCurrentMediaItemIndex
+
             playlist.add(index, mediaItem)
 
             // Adjust current index if needed
             if (index <= localCurrentMediaItemIndex) {
                 localCurrentMediaItemIndex++
             }
+
+            // Update shuffle order if enabled
+            if (internalShuffleModeEnabled) {
+                // Check if this is "play next" (inserting right after current playing song)
+                if (currentIndexBeforeInsert >= 0 && index == currentIndexBeforeInsert + 1) {
+                    // This is "play next" - insert into shuffle order right after current song
+                    val currentShufflePos = shuffleIndices.getOrNull(currentIndexBeforeInsert) ?: 0
+                    insertIntoShuffleOrder(index, currentShufflePos)
+                } else {
+                    // Not "play next" - recreate entire shuffle order
+                    createShuffleOrder()
+                }
+            }
+
+            // Notify timeline changed
+            notifyTimelineChanged("TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED")
+
             if (index - 1 - currentMediaItemIndex <= maxPrecacheCount) {
                 // If added item is within precache range, trigger precaching
                 coroutineScope.launch {
@@ -420,6 +462,14 @@ class GstreamerPlayerAdapter(
                     triggerPrecachingInternal()
                 }
             }
+
+            // Update shuffle order if enabled
+            if (internalShuffleModeEnabled) {
+                createShuffleOrder()
+            }
+
+            // Notify timeline changed
+            notifyTimelineChanged("TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED")
         }
     }
 
@@ -446,6 +496,14 @@ class GstreamerPlayerAdapter(
                     else -> localCurrentMediaItemIndex
                 }
 
+            // Update shuffle order if enabled
+            if (internalShuffleModeEnabled) {
+                createShuffleOrder()
+            }
+
+            // Notify timeline changed
+            notifyTimelineChanged("TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED")
+
             // Clear and rebuild precache
             clearPrecacheExceptCurrentInternal()
             triggerPrecachingInternal()
@@ -456,6 +514,12 @@ class GstreamerPlayerAdapter(
         coroutineScope.launch {
             playlist.clear()
             localCurrentMediaItemIndex = -1
+
+            // Clear shuffle order
+            clearShuffleOrder()
+
+            // Notify timeline changed
+            notifyTimelineChanged("TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED")
 
             cleanupCurrentPlayerInternal()
             clearAllPrecacheInternal()
@@ -476,6 +540,14 @@ class GstreamerPlayerAdapter(
                 cleanupPlayerInternal(cached.player)
             }
 
+            // Update shuffle order if enabled
+            if (internalShuffleModeEnabled) {
+                createShuffleOrder()
+            }
+
+            // Notify timeline changed
+            notifyTimelineChanged("TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED")
+
             if (index == localCurrentMediaItemIndex) {
                 loadAndPlayTrackInternal(index, 0, internalPlayWhenReady)
             } else {
@@ -485,6 +557,14 @@ class GstreamerPlayerAdapter(
     }
 
     override fun getMediaItemAt(index: Int): GenericMediaItem? = playlist.getOrNull(index)
+
+    override fun getCurrentMediaTimeLine(): List<GenericMediaItem> {
+        return if (internalShuffleModeEnabled) {
+            shuffleOrder.mapNotNull { shuffledIndex -> playlist.getOrNull(shuffledIndex) }
+        } else {
+            playlist.toList()
+        }
+    }
 
     // ========== Playback State Properties ==========
 
@@ -551,28 +631,72 @@ class GstreamerPlayerAdapter(
         when (internalRepeatMode) {
             PlayerConstants.REPEAT_MODE_ONE -> localCurrentMediaItemIndex
             PlayerConstants.REPEAT_MODE_ALL -> {
-                if (localCurrentMediaItemIndex < playlist.size - 1) {
-                    localCurrentMediaItemIndex + 1
+                if (internalShuffleModeEnabled && shuffleOrder.isNotEmpty()) {
+                    // Find current position in shuffle order
+                    val currentShufflePos = shuffleIndices.getOrNull(localCurrentMediaItemIndex) ?: 0
+                    val nextShufflePos = (currentShufflePos + 1) % shuffleOrder.size
+                    shuffleOrder.getOrNull(nextShufflePos) ?: localCurrentMediaItemIndex
                 } else {
-                    0
+                    if (localCurrentMediaItemIndex < playlist.size - 1) {
+                        localCurrentMediaItemIndex + 1
+                    } else {
+                        0
+                    }
                 }
             }
 
-            else -> (localCurrentMediaItemIndex + 1).coerceAtMost(playlist.size - 1)
+            else -> {
+                if (internalShuffleModeEnabled && shuffleOrder.isNotEmpty()) {
+                    // Find current position in shuffle order
+                    val currentShufflePos = shuffleIndices.getOrNull(localCurrentMediaItemIndex) ?: 0
+                    val nextShufflePos = currentShufflePos + 1
+                    if (nextShufflePos < shuffleOrder.size) {
+                        shuffleOrder.getOrNull(nextShufflePos) ?: localCurrentMediaItemIndex
+                    } else {
+                        localCurrentMediaItemIndex // No next item
+                    }
+                } else {
+                    (localCurrentMediaItemIndex + 1).coerceAtMost(playlist.size - 1)
+                }
+            }
         }
 
     private fun getPreviousMediaItemIndex(): Int =
         when (internalRepeatMode) {
             PlayerConstants.REPEAT_MODE_ONE -> localCurrentMediaItemIndex
             PlayerConstants.REPEAT_MODE_ALL -> {
-                if (localCurrentMediaItemIndex > 0) {
-                    localCurrentMediaItemIndex - 1
+                if (internalShuffleModeEnabled && shuffleOrder.isNotEmpty()) {
+                    // Find current position in shuffle order
+                    val currentShufflePos = shuffleIndices.getOrNull(localCurrentMediaItemIndex) ?: 0
+                    val prevShufflePos = if (currentShufflePos > 0) {
+                        currentShufflePos - 1
+                    } else {
+                        shuffleOrder.size - 1
+                    }
+                    shuffleOrder.getOrNull(prevShufflePos) ?: localCurrentMediaItemIndex
                 } else {
-                    playlist.size - 1
+                    if (localCurrentMediaItemIndex > 0) {
+                        localCurrentMediaItemIndex - 1
+                    } else {
+                        playlist.size - 1
+                    }
                 }
             }
 
-            else -> (localCurrentMediaItemIndex - 1).coerceAtLeast(0)
+            else -> {
+                if (internalShuffleModeEnabled && shuffleOrder.isNotEmpty()) {
+                    // Find current position in shuffle order
+                    val currentShufflePos = shuffleIndices.getOrNull(localCurrentMediaItemIndex) ?: 0
+                    val prevShufflePos = currentShufflePos - 1
+                    if (prevShufflePos >= 0) {
+                        shuffleOrder.getOrNull(prevShufflePos) ?: localCurrentMediaItemIndex
+                    } else {
+                        localCurrentMediaItemIndex // No previous item
+                    }
+                } else {
+                    (localCurrentMediaItemIndex - 1).coerceAtLeast(0)
+                }
+            }
         }
 
     // ========== Playback Modes ==========
@@ -580,8 +704,24 @@ class GstreamerPlayerAdapter(
     override var shuffleModeEnabled: Boolean
         get() = internalShuffleModeEnabled
         set(value) {
+            if (internalShuffleModeEnabled == value) return
+
             internalShuffleModeEnabled = value
-            // TODO: Implement shuffle logic with queue reordering
+
+            if (value) {
+                // Enable shuffle - create shuffle order
+                createShuffleOrder()
+            } else {
+                // Disable shuffle - clear shuffle order
+                clearShuffleOrder()
+            }
+
+            // Notify listeners with the current order
+            val mediaItemList = getShuffledMediaItemList()
+            listeners.forEach { it.onShuffleModeEnabledChanged(value, mediaItemList) }
+            notifyTimelineChanged("TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED")
+
+            Logger.d(TAG, "Shuffle mode ${if (value) "enabled" else "disabled"}")
         }
 
     override var repeatMode: Int
@@ -1226,6 +1366,111 @@ class GstreamerPlayerAdapter(
      */
     private fun notifyEqualizerIntent(shouldOpen: Boolean) {
         listeners.forEach { it.shouldOpenOrCloseEqualizerIntent(shouldOpen) }
+    }
+
+    /**
+     * Create shuffle order for current playlist
+     * Keeps the current track at its position and shuffles the rest
+     */
+    private fun createShuffleOrder() {
+        if (playlist.isEmpty()) {
+            shuffleIndices.clear()
+            shuffleOrder.clear()
+            return
+        }
+
+        // Create list of all indices
+        val indices = playlist.indices.toMutableList()
+
+        // If we have a current track, keep it at current position
+        val currentIndex = localCurrentMediaItemIndex
+        if (currentIndex in indices) {
+            indices.removeAt(currentIndex)
+        }
+
+        // Shuffle the remaining indices
+        indices.shuffle()
+
+        // If we have a current track, insert it at the beginning
+        if (currentIndex in playlist.indices) {
+            indices.add(0, currentIndex)
+        }
+
+        // Store the shuffle order
+        shuffleOrder.clear()
+        shuffleOrder.addAll(indices)
+
+        // Create reverse mapping (original index -> shuffled position)
+        shuffleIndices.clear()
+        shuffleIndices.addAll(List(playlist.size) { 0 })
+        shuffleOrder.forEachIndexed { shuffledPos, originalIndex ->
+            shuffleIndices[originalIndex] = shuffledPos
+        }
+
+        Logger.d(TAG, "Created shuffle order: $shuffleOrder")
+    }
+
+    /**
+     * Clear shuffle order
+     */
+    private fun clearShuffleOrder() {
+        shuffleIndices.clear()
+        shuffleOrder.clear()
+        Logger.d(TAG, "Cleared shuffle order")
+    }
+
+    /**
+     * Insert item into shuffle order at specific position
+     * Used for "play next" functionality when shuffle is enabled
+     *
+     * @param insertedOriginalIndex The index in the original playlist where item was inserted
+     * @param afterShufflePos The shuffle position after which to insert (typically current song's position)
+     */
+    private fun insertIntoShuffleOrder(insertedOriginalIndex: Int, afterShufflePos: Int) {
+        if (playlist.isEmpty() || insertedOriginalIndex !in playlist.indices) {
+            return
+        }
+
+        // Step 1: Adjust all existing shuffle order indices that are >= insertedOriginalIndex
+        // (because we inserted a new item, all indices after it shift up by 1)
+        for (i in shuffleOrder.indices) {
+            if (shuffleOrder[i] >= insertedOriginalIndex) {
+                shuffleOrder[i]++
+            }
+        }
+
+        // Step 2: Insert the new item right after the specified shuffle position
+        val insertPos = (afterShufflePos + 1).coerceIn(0, shuffleOrder.size)
+        shuffleOrder.add(insertPos, insertedOriginalIndex)
+
+        // Step 3: Rebuild the reverse mapping
+        shuffleIndices.clear()
+        shuffleIndices.addAll(List(playlist.size) { 0 })
+        shuffleOrder.forEachIndexed { shuffledPos, origIndex ->
+            if (origIndex < shuffleIndices.size) {
+                shuffleIndices[origIndex] = shuffledPos
+            }
+        }
+
+        Logger.d(TAG, "Inserted index $insertedOriginalIndex into shuffle at position $insertPos (after shuffle pos $afterShufflePos)")
+    }
+
+    /**
+     * Get shuffled list of media items
+     */
+    private fun getShuffledMediaItemList(): List<GenericMediaItem> {
+        if (!internalShuffleModeEnabled || shuffleOrder.isEmpty()) {
+            return playlist.toList()
+        }
+        return shuffleOrder.mapNotNull { playlist.getOrNull(it) }
+    }
+
+    /**
+     * Notify timeline changed with current order (shuffled or not)
+     */
+    private fun notifyTimelineChanged(reason: String) {
+        val list = getShuffledMediaItemList()
+        listeners.forEach { it.onTimelineChanged(list, reason) }
     }
 
     /**

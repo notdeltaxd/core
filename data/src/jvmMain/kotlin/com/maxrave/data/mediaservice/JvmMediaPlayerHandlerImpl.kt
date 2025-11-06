@@ -880,7 +880,13 @@ class JvmMediaPlayerHandlerImpl(
 
     override fun currentSongIndex(): Int = player.currentMediaItemIndex
 
-    override fun currentOrderIndex(): Int = player.currentMediaItemIndex
+    override fun currentOrderIndex(): Int = if (player.shuffleModeEnabled) {
+        queueData.value.data.listTracks.indexOfLast {
+            it.videoId == player.currentMediaItem?.mediaId
+        }
+    } else {
+        currentSongIndex()
+    }
 
     override suspend fun swap(
         from: Int,
@@ -1054,6 +1060,7 @@ class JvmMediaPlayerHandlerImpl(
                                                 queueState = QueueData.StateSource.STATE_INITIALIZED,
                                             )
                                         }
+                                        reorderShuffledQueue(player.getCurrentMediaTimeLine())
                                     }
                                 }
                             }
@@ -1111,6 +1118,7 @@ class JvmMediaPlayerHandlerImpl(
                                             queueState = QueueData.StateSource.STATE_INITIALIZED,
                                         )
                                     }
+                                    reorderShuffledQueue(player.getCurrentMediaTimeLine())
                                     Logger.d("Check loadMore", "queueData: ${queueData.value}")
                                     getRelated(lastTrack.videoId)
                                 }
@@ -1129,6 +1137,7 @@ class JvmMediaPlayerHandlerImpl(
                     data = it.data.copy(playlistId = "RDAMVM${lastTrack.videoId}"),
                 )
             }
+            reorderShuffledQueue(player.getCurrentMediaTimeLine())
             Logger.d("Check loadMore", "queueData: ${queueData.value}")
             getRelated(lastTrack.videoId)
         }
@@ -1162,6 +1171,7 @@ class JvmMediaPlayerHandlerImpl(
                                     ),
                             )
                         }
+                        reorderShuffledQueue(player.getCurrentMediaTimeLine())
                     }
                 }
             }
@@ -1237,6 +1247,7 @@ class JvmMediaPlayerHandlerImpl(
                     queueState = QueueData.StateSource.STATE_INITIALIZED,
                 )
             }
+            reorderShuffledQueue(player.getCurrentMediaTimeLine())
         }
     }
 
@@ -1361,6 +1372,7 @@ class JvmMediaPlayerHandlerImpl(
                     queueState = QueueData.StateSource.STATE_INITIALIZED,
                 ).addTrackList(catalogMetadata)
         }
+        reorderShuffledQueue(player.getCurrentMediaTimeLine())
     }
 
     override suspend fun updateCatalog(
@@ -1715,6 +1727,7 @@ class JvmMediaPlayerHandlerImpl(
                         queueState = QueueData.StateSource.STATE_INITIALIZED,
                     ).addTrackList(catalogMetadata)
             }
+            reorderShuffledQueue(player.getCurrentMediaTimeLine())
         }
     }
 
@@ -2128,7 +2141,14 @@ class JvmMediaPlayerHandlerImpl(
                 _controlState.value = _controlState.value.copy(isShuffle = false)
             }
         }
+        reorderShuffledQueue(list)
         updateNextPreviousTrackAvailability()
+    }
+
+    override fun onTimelineChanged(list: List<GenericMediaItem>, reason: String) {
+        super.onTimelineChanged(list, reason)
+        Logger.d(TAG, "onTimelineChanged: $reason, items: ${list.size}")
+        reorderShuffledQueue(list)
     }
 
     override fun onRepeatModeChanged(repeatMode: Int) {
@@ -2156,5 +2176,26 @@ class JvmMediaPlayerHandlerImpl(
         } else {
             stopBufferedUpdate()
         }
+    }
+
+    private fun reorderShuffledQueue(list: List<GenericMediaItem>) {
+        val listTrack = queueData.value.data.listTracks
+        Logger.d(TAG, "Reordering shuffled queue: SIZE ${list.size}, TITLE ${list.map { it.mediaId }}")
+        list
+            .mapNotNull {
+                listTrack.firstOrNull { track -> track.videoId == it.mediaId }
+            }.let { sorted ->
+                Logger.d(TAG, "Reordered shuffled queue: SIZE ${sorted.size}, TITLE ${sorted.map { it.title }}")
+                Logger.d(TAG, "Original queue: SIZE ${listTrack.size}, TITLE ${listTrack.map { it.title }}")
+                if (sorted.size != listTrack.size) return
+                _queueData.update {
+                    it.copy(
+                        data =
+                            it.data.copy(
+                                listTracks = sorted,
+                            ),
+                    )
+                }
+            }
     }
 }

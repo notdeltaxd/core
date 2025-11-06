@@ -100,6 +100,17 @@ class ExoPlayerAdapter(
             null
         }
 
+    override fun getCurrentMediaTimeLine(): List<GenericMediaItem> {
+        val list = mutableListOf<GenericMediaItem>()
+        val s = exoPlayer.shuffleModeEnabled
+        var i = exoPlayer.currentTimeline.getFirstWindowIndex(s)
+        while (i != C.INDEX_UNSET) {
+            getMediaItemAt(i)?.let { list.add(it) }
+            i = exoPlayer.currentTimeline.getNextWindowIndex(i, Player.REPEAT_MODE_OFF, s)
+        }
+        return list
+    }
+
     // Playback state properties
     override val isPlaying: Boolean get() = exoPlayer.isPlaying
     override val currentPosition: Long get() = exoPlayer.currentPosition

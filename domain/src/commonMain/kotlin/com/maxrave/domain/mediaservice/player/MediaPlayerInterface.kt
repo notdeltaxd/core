@@ -57,6 +57,8 @@ interface MediaPlayerInterface {
 
     fun getMediaItemAt(index: Int): GenericMediaItem?
 
+    fun getCurrentMediaTimeLine(): List<GenericMediaItem>
+
     // Playback state properties
     val isPlaying: Boolean
     val currentPosition: Long

@@ -1072,6 +1072,7 @@ internal class MediaServiceHandlerImpl(
                                                 queueState = QueueData.StateSource.STATE_INITIALIZED,
                                             )
                                         }
+                                        reorderShuffledQueue(player.getCurrentMediaTimeLine())
                                     }
                                 }
                             }
@@ -1129,6 +1130,7 @@ internal class MediaServiceHandlerImpl(
                                             queueState = QueueData.StateSource.STATE_INITIALIZED,
                                         )
                                     }
+                                    reorderShuffledQueue(player.getCurrentMediaTimeLine())
                                     Logger.d("Check loadMore", "queueData: ${queueData.value}")
                                     getRelated(lastTrack.videoId)
                                 }
@@ -1147,6 +1149,7 @@ internal class MediaServiceHandlerImpl(
                     data = it.data.copy(playlistId = "RDAMVM${lastTrack.videoId}"),
                 )
             }
+            reorderShuffledQueue(player.getCurrentMediaTimeLine())
             Logger.d("Check loadMore", "queueData: ${queueData.value}")
             getRelated(lastTrack.videoId)
         }
@@ -1180,6 +1183,7 @@ internal class MediaServiceHandlerImpl(
                                     ),
                             )
                         }
+                        reorderShuffledQueue(player.getCurrentMediaTimeLine())
                     }
                 }
             }
@@ -1255,6 +1259,7 @@ internal class MediaServiceHandlerImpl(
                     queueState = QueueData.StateSource.STATE_INITIALIZED,
                 )
             }
+            reorderShuffledQueue(player.getCurrentMediaTimeLine())
         }
     }
 
@@ -1379,6 +1384,7 @@ internal class MediaServiceHandlerImpl(
                     queueState = QueueData.StateSource.STATE_INITIALIZED,
                 ).addTrackList(catalogMetadata)
         }
+        reorderShuffledQueue(player.getCurrentMediaTimeLine())
     }
 
     override suspend fun updateCatalog(
@@ -1742,6 +1748,7 @@ internal class MediaServiceHandlerImpl(
                         queueState = QueueData.StateSource.STATE_INITIALIZED,
                     ).addTrackList(catalogMetadata)
             }
+            reorderShuffledQueue(player.getCurrentMediaTimeLine())
         }
     }
 
@@ -2185,7 +2192,7 @@ internal class MediaServiceHandlerImpl(
     ) {
         super.onTimelineChanged(list, reason)
         Logger.d(TAG, "onTimelineChanged: Reason: $reason, Items: ${list.size}")
-        reorderShuffledQueue(list)
+//        reorderShuffledQueue(list)
     }
 
     private fun reorderShuffledQueue(list: List<GenericMediaItem>) {
