@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Text
@@ -15,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
@@ -40,14 +43,17 @@ import coil3.request.crossfade
 import com.maxrave.domain.data.model.metadata.Lyrics
 import com.maxrave.domain.data.model.streams.TimeLine
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
+import com.maxrave.logger.Logger
 import com.simpmusic.media_jvm.GstreamerPlayerAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
+import kotlinx.coroutines.withContext
 import org.freedesktop.gstreamer.Bus
 import org.freedesktop.gstreamer.elements.PlayBin
 import org.freedesktop.gstreamer.swing.GstVideoComponent
 import org.koin.compose.koinInject
+import java.awt.Dimension
 import java.net.URI
 import java.util.concurrent.TimeUnit
 import javax.swing.BoxLayout
@@ -87,9 +93,17 @@ fun MediaPlayerViewWithUrl(
         }
     }
 
+    var sizePx by remember {
+        mutableStateOf(0 to 0)
+    }
+
     Box(
         modifier
-            .graphicsLayer { clip = true },
+            .graphicsLayer { clip = true }
+            .onGloballyPositioned {
+                sizePx =
+                    it.size.width to it.size.height
+            },
     ) {
         if (gsVideoComponent != null) {
             SwingPanel(
@@ -97,13 +111,15 @@ fun MediaPlayerViewWithUrl(
                     JPanel().apply {
                         layout = BoxLayout(this, BoxLayout.Y_AXIS)
                         background = java.awt.Color(255, 255, 255, 0)
+                        preferredSize = Dimension(sizePx.first, sizePx.second)
                         add(gsVideoComponent)
                     }
                 },
                 modifier =
                     Modifier
-                        .fillMaxHeight()
-                        .wrapContentWidth(),
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .align(Alignment.Center),
                 background = Color.Transparent,
             )
         }
@@ -125,7 +141,7 @@ fun MediaPlayerViewWithSubtitleJvm(
 ) {
     val player: GstreamerPlayerAdapter = koinInject<GstreamerPlayerAdapter>()
 
-    val state by mediaPlayerHandler.simpleMediaState.collectAsState()
+    val state by mediaPlayerHandler.nowPlayingState.collectAsState()
 
     val scope = rememberCoroutineScope()
     var sizePx by remember {
@@ -135,8 +151,8 @@ fun MediaPlayerViewWithSubtitleJvm(
         mutableStateOf<GstVideoComponent?>(null)
     }
 
-    var showArtwork by rememberSaveable {
-        mutableStateOf(false)
+    val showArtwork by derivedStateOf {
+        gsVideoComponent == null
     }
 
     var artworkUri by rememberSaveable {
@@ -151,15 +167,10 @@ fun MediaPlayerViewWithSubtitleJvm(
     }
 
     LaunchedEffect(state) {
-        scope.launch(Dispatchers.Swing) {
-            gsVideoComponent = player.getCurrentPlayer()?.videoComponent
-        }
-    }
-
-    DisposableEffect(true) {
-        onDispose {
-            scope.launch(Dispatchers.Swing) {
-                gsVideoComponent = null
+        snapshotFlow { state.songEntity }.collect {
+            withContext(Dispatchers.Swing) {
+                gsVideoComponent = player.getCurrentPlayer()?.videoComponent
+                Logger.d("MediaPlayerViewWithSubtitleJvm", "Video component: $gsVideoComponent")
             }
         }
     }
@@ -263,6 +274,7 @@ fun MediaPlayerViewWithSubtitleJvm(
                                 JPanel().apply {
                                     layout = BoxLayout(this, BoxLayout.Y_AXIS)
                                     background = java.awt.Color(255, 255, 255, 0)
+                                    preferredSize = Dimension(sizePx.first, sizePx.second)
                                     add(gsVideoComponent)
                                 }
                             },
