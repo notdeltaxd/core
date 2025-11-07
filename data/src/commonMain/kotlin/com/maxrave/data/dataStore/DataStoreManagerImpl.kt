@@ -971,7 +971,7 @@ internal class DataStoreManagerImpl(
 
     override val keepServiceAlive: Flow<String> =
         settingsDataStore.data.map { preferences ->
-            preferences[KEEP_SERVICE_ALIVE] ?: TRUE
+            preferences[KEEP_SERVICE_ALIVE] ?: FALSE
         }
 
     override suspend fun setKeepServiceAlive(keep: Boolean) {
