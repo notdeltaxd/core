@@ -11,9 +11,6 @@ import com.maxrave.domain.mediaservice.player.MediaPlayerInterface
 import com.maxrave.domain.mediaservice.player.MediaPlayerListener
 import com.maxrave.domain.repository.StreamRepository
 import com.maxrave.logger.Logger
-import com.simpmusic.media_jvm.GstreamerPlayerAdapter.InternalState.PAUSED
-import com.simpmusic.media_jvm.GstreamerPlayerAdapter.InternalState.PLAYING
-import com.simpmusic.media_jvm.GstreamerPlayerAdapter.InternalState.READY
 import com.simpmusic.media_jvm.download.getDownloadPath
 import com.sun.jna.Platform
 import com.sun.jna.platform.win32.Kernel32
@@ -75,7 +72,8 @@ class GstreamerPlayerAdapter(
         ERROR, // Error state
     }
 
-    private fun InternalState.isInReadyState(): Boolean = this == READY || this == PLAYING || this == PAUSED
+    private fun InternalState.isInReadyState(): Boolean =
+        this == InternalState.READY || this == InternalState.PLAYING || this == InternalState.PAUSED
 
     init {
         /**
@@ -852,7 +850,7 @@ class GstreamerPlayerAdapter(
             }
 
             InternalState.READY -> {
-                if (internalPlayWhenReady) {
+                if (internalPlayWhenReady && currentPlayer?.playerBin?.state != State.PAUSED) {
                     play()
                 } else {
                     listeners.forEach { it.onPlaybackStateChanged(PlayerConstants.STATE_READY) }
