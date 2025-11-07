@@ -893,7 +893,8 @@ internal class MediaServiceHandlerImpl(
     }
 
     override fun playMediaItemInMediaSource(index: Int) {
-        player.seekTo(index, 0)
+        val i = if (player.shuffleModeEnabled) player.getUnshuffledIndex(index) else index
+        player.seekTo(i, 0)
         player.prepare()
         player.playWhenReady = true
     }
@@ -2192,11 +2193,15 @@ internal class MediaServiceHandlerImpl(
     ) {
         super.onTimelineChanged(list, reason)
         Logger.d(TAG, "onTimelineChanged: Reason: $reason, Items: ${list.size}")
-//        reorderShuffledQueue(list)
+        reorderShuffledQueue(list)
     }
 
     private fun reorderShuffledQueue(list: List<GenericMediaItem>) {
         val listTrack = queueData.value.data.listTracks
+        if (list.isEmpty()) run {
+            Logger.d(TAG, "Reordering shuffled queue: empty list")
+            return
+        }
         list
             .mapNotNull {
                 listTrack.firstOrNull { track -> track.videoId == it.mediaId }

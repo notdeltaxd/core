@@ -564,6 +564,14 @@ class GstreamerPlayerAdapter(
         }
     }
 
+    override fun getUnshuffledIndex(shuffledIndex: Int): Int {
+        return if (internalShuffleModeEnabled) {
+            shuffleOrder.getOrNull(shuffledIndex) ?: -1
+        } else {
+            shuffledIndex
+        }
+    }
+
     // ========== Playback State Properties ==========
 
     override val isPlaying: Boolean

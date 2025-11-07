@@ -59,6 +59,8 @@ interface MediaPlayerInterface {
 
     fun getCurrentMediaTimeLine(): List<GenericMediaItem>
 
+    fun getUnshuffledIndex(shuffledIndex: Int): Int
+
     // Playback state properties
     val isPlaying: Boolean
     val currentPosition: Long

@@ -873,7 +873,8 @@ class JvmMediaPlayerHandlerImpl(
     }
 
     override fun playMediaItemInMediaSource(index: Int) {
-        player.seekTo(index, 0)
+        val i = if (player.shuffleModeEnabled) player.getUnshuffledIndex(index) else index
+        player.seekTo(i, 0)
         player.prepare()
         player.playWhenReady = true
     }

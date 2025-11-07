@@ -20,6 +20,7 @@ import com.maxrave.domain.data.player.PlayerConstants
 import com.maxrave.domain.data.player.PlayerError
 import com.maxrave.domain.mediaservice.player.MediaPlayerInterface
 import com.maxrave.domain.mediaservice.player.MediaPlayerListener
+import com.maxrave.logger.Logger
 
 /**
  * ExoPlayer implementation of MediaPlayerInterface
@@ -108,7 +109,27 @@ class ExoPlayerAdapter(
             getMediaItemAt(i)?.let { list.add(it) }
             i = exoPlayer.currentTimeline.getNextWindowIndex(i, Player.REPEAT_MODE_OFF, s)
         }
+        Logger.d("ExoPlayerAdapter", "getCurrentMediaTimeLine: $list")
         return list
+    }
+
+    override fun getUnshuffledIndex(shuffledIndex: Int): Int {
+        if (!exoPlayer.shuffleModeEnabled) {
+            return shuffledIndex
+        } else {
+            val currentTimeline = exoPlayer.currentTimeline
+            val indices = mutableListOf<Int>()
+            var index = currentTimeline.getFirstWindowIndex(shuffleModeEnabled)
+            if (index == -1) {
+                return -1
+            }
+
+            repeat(currentTimeline.windowCount) {
+                indices += index
+                index = currentTimeline.getNextWindowIndex(index, Player.REPEAT_MODE_OFF, true)
+            }
+            return indices.getOrNull(shuffledIndex) ?: -1
+        }
     }
 
     // Playback state properties
