@@ -905,15 +905,16 @@ internal class MediaServiceHandlerImpl(
         from: Int,
         to: Int,
     ) {
-        if (from < to) {
-            for (i in from until to) {
-                moveItemDown(i)
-            }
-        } else {
-            for (i in from downTo to + 1) {
-                moveItemUp(i)
-            }
-        }
+//        if (from < to) {
+//            for (i in from until to) {
+//                moveItemDown(i)
+//            }
+//        } else {
+//            for (i in from downTo to + 1) {
+//                moveItemUp(i)
+//            }
+//        }
+        moveMediaItem(from, to)
     }
 
     override fun resetCrossfade() {
@@ -1624,7 +1625,7 @@ internal class MediaServiceHandlerImpl(
     override fun currentOrderIndex(): Int =
         if (player.shuffleModeEnabled) {
             queueData.value.data.listTracks.indexOfLast {
-                it.videoId == player.currentMediaItem?.mediaId
+                it.videoId == player.currentMediaItem?.mediaId?.removePrefix(MERGING_DATA_TYPE.VIDEO)
             }
         } else {
             currentSongIndex()
@@ -1743,14 +1744,14 @@ internal class MediaServiceHandlerImpl(
                 "updateCatalog: ${track.title}, ${catalogMetadata.size}",
             )
             Logger.d("MusicSource", "updateCatalog: ${track.title}")
-            _queueData.update {
-                it
-                    .copy(
-                        queueState = QueueData.StateSource.STATE_INITIALIZED,
-                    ).addTrackList(catalogMetadata)
-            }
-            reorderShuffledQueue(player.getCurrentMediaTimeLine())
         }
+        _queueData.update {
+            it
+                .copy(
+                    queueState = QueueData.StateSource.STATE_INITIALIZED,
+                ).addTrackList(catalogMetadata)
+        }
+        reorderShuffledQueue(player.getCurrentMediaTimeLine())
     }
 
     override suspend fun <T> loadMediaItem(
@@ -2198,9 +2199,11 @@ internal class MediaServiceHandlerImpl(
 
     private fun reorderShuffledQueue(list: List<GenericMediaItem>) {
         val listTrack = queueData.value.data.listTracks
-        if (list.isEmpty()) run {
-            Logger.d(TAG, "Reordering shuffled queue: empty list")
-            return
+        if (list.isEmpty()) {
+            run {
+                Logger.d(TAG, "Reordering shuffled queue: empty list")
+                return
+            }
         }
         list
             .mapNotNull {

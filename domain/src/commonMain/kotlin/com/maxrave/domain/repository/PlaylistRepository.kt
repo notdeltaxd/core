@@ -51,13 +51,27 @@ interface PlaylistRepository {
         artist: ArtistEntity? = null,
     ): Flow<Resource<Pair<PlaylistBrowse, String?>>>
 
-    fun getRDATRadioData(radioId: String, viewString: String): Flow<Resource<Pair<PlaylistBrowse, String?>>>
+    fun getRDATRadioData(
+        radioId: String,
+        viewString: String,
+    ): Flow<Resource<Pair<PlaylistBrowse, String?>>>
 
-    fun getFullPlaylistData(playlistId: String, viewString: String): Flow<Resource<PlaylistBrowse>>
+    fun getFullPlaylistData(
+        playlistId: String,
+        viewString: String,
+    ): Flow<Resource<PlaylistBrowse>>
 
-    fun getPlaylistData(playlistId: String, viewString: String): Flow<Resource<Pair<PlaylistBrowse, String?>>>
+    fun getPlaylistData(
+        playlistId: String,
+        viewString: String,
+    ): Flow<Resource<Pair<PlaylistBrowse, String?>>>
 
     fun getLibraryPlaylist(): Flow<List<PlaylistsResult>?>
 
     fun getMixedForYou(): Flow<List<PlaylistsResult>?>
+
+    fun updateYourYouTubePlaylistTitle(
+        playlistId: String,
+        newTitle: String,
+    ): Flow<Resource<String>>
 }

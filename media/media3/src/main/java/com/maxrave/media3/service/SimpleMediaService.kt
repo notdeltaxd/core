@@ -1,6 +1,8 @@
 package com.maxrave.media3.service
 
 import android.app.Activity
+import android.app.ActivityManager
+import android.app.ActivityManager.RunningAppProcessInfo
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -31,17 +33,23 @@ import com.maxrave.logger.Logger
 import com.maxrave.media3.R
 import com.maxrave.media3.extension.toCommandButton
 import com.maxrave.media3.utils.CoilBitmapLoader
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import kotlin.system.exitProcess
+import kotlin.time.Duration.Companion.seconds
 
 @UnstableApi
 internal class SimpleMediaService :
     MediaLibraryService(),
     KoinComponent {
+    private val coroutineScope by inject<CoroutineScope>(named(Config.SERVICE_SCOPE))
     private val player: ExoPlayer by inject<ExoPlayer>(named(Config.MAIN_PLAYER))
     private val coilBitmapLoader: CoilBitmapLoader by inject<CoilBitmapLoader>()
 
@@ -122,31 +130,41 @@ internal class SimpleMediaService :
                     NotificationChannel(
                         "media_playback_channel",
                         "Now playing",
-                        NotificationManager.IMPORTANCE_LOW
+                        NotificationManager.IMPORTANCE_LOW,
                     ).apply {
                         setSound(null, null)
                         enableLights(false)
                         enableVibration(false)
-                    }
+                    },
                 )
             }
-            playerNotificationManager = PlayerNotificationManager.Builder(this, 2026, "media_playback_channel")
-                .setNotificationListener(object : PlayerNotificationManager.NotificationListener {
-                    override fun onNotificationPosted(notificationId: Int, notification: Notification, ongoing: Boolean) {
-                        fun startFg() {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                startForeground(notificationId, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-                            } else {
-                                startForeground(notificationId, notification)
+            playerNotificationManager =
+                PlayerNotificationManager
+                    .Builder(this, 2026, "media_playback_channel")
+                    .setNotificationListener(
+                        object : PlayerNotificationManager.NotificationListener {
+                            override fun onNotificationPosted(
+                                notificationId: Int,
+                                notification: Notification,
+                                ongoing: Boolean,
+                            ) {
+                                fun startFg() {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                        startForeground(notificationId, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                                    } else {
+                                        startForeground(notificationId, notification)
+                                    }
+                                }
+                                coroutineScope.launch {
+                                    while (coroutineScope.isActive) {
+                                        startFg()
+                                        delay(30.seconds)
+                                    }
+                                }
                             }
-                        }
-
-                        // FG keep alive, thanks to OuterTune for solution
-                        startFg()
-                    }
-                })
-                .setMediaDescriptionAdapter(DefaultMediaDescriptionAdapter(mediaSession?.sessionActivity))
-                .build()
+                        },
+                    ).setMediaDescriptionAdapter(DefaultMediaDescriptionAdapter(mediaSession?.sessionActivity))
+                    .build()
             playerNotificationManager.setPlayer(player)
             playerNotificationManager.setSmallIcon(R.drawable.mono)
             mediaSession?.platformToken?.let { playerNotificationManager.setMediaSessionToken(it) }
@@ -231,4 +249,10 @@ internal class SimpleMediaService :
             ).setId(this.javaClass.name)
             .setBitmapLoader(coilBitmapLoader)
             .build()
+
+    private fun isAppInForeground(): Boolean {
+        val appProcessInfo = RunningAppProcessInfo()
+        ActivityManager.getMyMemoryState(appProcessInfo)
+        return appProcessInfo.importance == RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+    }
 }

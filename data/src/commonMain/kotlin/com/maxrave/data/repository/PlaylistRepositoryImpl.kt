@@ -32,6 +32,7 @@ import com.maxrave.kotlinytmusicscraper.parser.getPlaylistRadioEndpoint
 import com.maxrave.kotlinytmusicscraper.parser.getPlaylistShuffleEndpoint
 import com.maxrave.logger.Logger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
@@ -682,6 +683,20 @@ internal class PlaylistRepositoryImpl(
                     } else {
                         emit(null)
                     }
+                }
+        }.flowOn(Dispatchers.IO)
+
+    override fun updateYourYouTubePlaylistTitle(
+        playlistId: String,
+        newTitle: String,
+    ): Flow<Resource<String>> =
+        flow {
+            youTube
+                .editPlaylist(playlistId, newTitle)
+                .onSuccess {
+                    emit(Resource.Success(it.toString()))
+                }.onFailure {
+                    emit(Resource.Error<String>(it.message ?: "Unknown error"))
                 }
         }.flowOn(Dispatchers.IO)
 }
