@@ -579,6 +579,12 @@ interface DatabaseDao {
     @Insert(onConflict = OnConflictStrategy.Companion.REPLACE)
     suspend fun insertPairSongLocalPlaylist(pairSongLocalPlaylist: PairSongLocalPlaylist)
 
+    @Query("SELECT * FROM pair_song_local_playlist WHERE songId = :videoId AND playlistId = :localPlaylistId LIMIT 1")
+    suspend fun getPlaylistPairOfSong(
+        videoId: String,
+        localPlaylistId: Long,
+    ): PairSongLocalPlaylist
+
     @Query("SELECT * FROM pair_song_local_playlist WHERE playlistId = :playlistId ORDER BY position ASC LIMIT :limit OFFSET :offset")
     suspend fun getPlaylistPairSong(
         playlistId: Long,
@@ -596,19 +602,42 @@ interface DatabaseDao {
         "SELECT * FROM pair_song_local_playlist WHERE playlistId = :playlistId ORDER BY position " +
             "ASC LIMIT 50 OFFSET :offset",
     )
-    suspend fun getPlaylistPairSongByOffsetAsc(
+    suspend fun getPlaylistPairSongByOffset(
         playlistId: Long,
         offset: Int,
     ): List<PairSongLocalPlaylist>
 
     @Query(
-        "SELECT * FROM pair_song_local_playlist WHERE playlistId = :playlistId AND position >= :offset ORDER BY position " +
-            "LIMIT 50",
+        "SELECT * FROM pair_song_local_playlist WHERE playlistId = :playlistId AND inPlaylist > :cutPoint ORDER BY position " +
+            "ASC LIMIT 50",
     )
-    suspend fun getPlaylistPairSongByOffsetDesc(
+    suspend fun getPlaylistPairSongByOlderFirst(
         playlistId: Long,
-        offset: Int,
+        cutPoint: LocalDateTime,
     ): List<PairSongLocalPlaylist>
+
+    @Query(
+        "SELECT * FROM pair_song_local_playlist WHERE playlistId = :playlistId AND inPlaylist < :cutPoint ORDER BY position " +
+            "DESC LIMIT 50",
+    )
+    suspend fun getPlaylistPairSongByNewerFirst(
+        playlistId: Long,
+        cutPoint: LocalDateTime,
+    ): List<PairSongLocalPlaylist>
+
+    @Query(
+        "SELECT * FROM pair_song_local_playlist WHERE playlistId = :playlistId ORDER BY position DESC LIMIT 1",
+    )
+    suspend fun getNewestPlaylistPairSong(playlistId: Long): PairSongLocalPlaylist?
+
+    @Query(
+        "UPDATE pair_song_local_playlist SET position = :newPosition WHERE playlistId = :playlistId AND songId = :videoId",
+    )
+    suspend fun editPositionOfSongInPlaylist(
+        playlistId: Long,
+        videoId: String,
+        newPosition: Int,
+    )
 
     @Query(
         "SELECT * FROM pair_song_local_playlist WHERE playlistId = :playlistId AND position >= :from AND position < :to ORDER BY position " +

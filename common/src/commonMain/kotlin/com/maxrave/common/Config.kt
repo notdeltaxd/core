@@ -258,20 +258,30 @@ object LIMIT_CACHE_SIZE {
     }
 }
 
-sealed class SponsorBlockType(val value: String) {
+sealed class SponsorBlockType(
+    val value: String,
+) {
     data object SPONSOR : SponsorBlockType("sponsor")
+
     data object SELF_PROMOTION : SponsorBlockType("selfpromo")
+
     data object INTERACTION : SponsorBlockType("interaction")
+
     data object INTRO : SponsorBlockType("intro")
+
     data object OUTRO : SponsorBlockType("outro")
+
     data object PREVIEW : SponsorBlockType("preview")
+
     data object MUSIC_OFF_TOPIC : SponsorBlockType("music_offtopic")
+
     data object POI_HIGHLIGHT : SponsorBlockType("poi_highlight")
+
     data object FILLER : SponsorBlockType("filler")
 
     companion object {
-        fun fromValue(value: String): SponsorBlockType? {
-            return when (value) {
+        fun fromValue(value: String): SponsorBlockType? =
+            when (value) {
                 SPONSOR.value -> SPONSOR
                 SELF_PROMOTION.value -> SELF_PROMOTION
                 INTERACTION.value -> INTERACTION
@@ -283,10 +293,9 @@ sealed class SponsorBlockType(val value: String) {
                 FILLER.value -> FILLER
                 else -> null
             }
-        }
 
-        fun toList(): List<SponsorBlockType> {
-            return listOf(
+        fun toList(): List<SponsorBlockType> =
+            listOf(
                 SPONSOR,
                 SELF_PROMOTION,
                 INTERACTION,
@@ -295,12 +304,11 @@ sealed class SponsorBlockType(val value: String) {
                 PREVIEW,
                 MUSIC_OFF_TOPIC,
                 POI_HIGHLIGHT,
-                FILLER
+                FILLER,
             )
-        }
     }
 }
-//object SPONSOR_BLOCK {
+// object SPONSOR_BLOCK {
 //    val list: Array<CharSequence> =
 //        arrayOf("sponsor", "selfpromo", "interaction", "intro", "outro", "preview", "music_offtopic", "poi_highlight", "filler")
 //    val listName: Array<Int> =
@@ -343,7 +351,7 @@ sealed class SponsorBlockType(val value: String) {
 //            }
 //        return result
 //    }
-//}
+// }
 
 object CHART_SUPPORTED_COUNTRY {
     val items =
@@ -512,6 +520,8 @@ const val LOCAL_PLAYLIST_ID_LIKED = "LOCAL_PLAYLIST_ID_LIKED"
 const val LOCAL_PLAYLIST_ID = "LOCAL_PLAYLIST_ID"
 const val ASC = "ASC"
 const val DESC = "DESC"
+const val CUSTOM_ORDER = "CUSTOM_ORDER"
+const val TITLE = "TITLE"
 
 object MERGING_DATA_TYPE {
     const val SONG = "Song"
@@ -525,10 +535,11 @@ enum class LibraryChipType {
     LOCAL_PLAYLIST,
     FAVORITE_PLAYLIST,
     DOWNLOADED_PLAYLIST,
-    FAVORITE_PODCAST;
+    FAVORITE_PODCAST,
+    ;
 
-    fun toStringValue(): String {
-        return when (this) {
+    fun toStringValue(): String =
+        when (this) {
             YOUR_LIBRARY -> "your_library"
             YOUTUBE_MUSIC_PLAYLIST -> "youtube_music_playlist"
             YOUTUBE_MIX_FOR_YOU -> "youtube_mix_for_you"
@@ -537,11 +548,10 @@ enum class LibraryChipType {
             DOWNLOADED_PLAYLIST -> "downloaded_playlist"
             FAVORITE_PODCAST -> "favorite_podcast"
         }
-    }
 
     companion object {
-        fun fromStringValue(value: String): LibraryChipType? {
-            return when (value) {
+        fun fromStringValue(value: String): LibraryChipType? =
+            when (value) {
                 "your_library" -> YOUR_LIBRARY
                 "youtube_music_playlist" -> YOUTUBE_MUSIC_PLAYLIST
                 "youtube_mix_for_you" -> YOUTUBE_MIX_FOR_YOU
@@ -551,6 +561,5 @@ enum class LibraryChipType {
                 "favorite_podcast" -> FAVORITE_PODCAST
                 else -> null
             }
-        }
     }
 }

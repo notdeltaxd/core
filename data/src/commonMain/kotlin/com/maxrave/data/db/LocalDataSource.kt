@@ -21,7 +21,6 @@ import com.maxrave.domain.data.entities.SongInfoEntity
 import com.maxrave.domain.data.entities.TranslatedLyricsEntity
 import com.maxrave.domain.extension.now
 import com.maxrave.domain.utils.FilterState
-import com.maxrave.logger.Logger
 import kotlinx.datetime.LocalDateTime
 
 internal class LocalDataSource(
@@ -333,6 +332,11 @@ internal class LocalDataSource(
 
     suspend fun unsyncLocalPlaylist(id: Long) = databaseDao.unsyncLocalPlaylist(id)
 
+    suspend fun getPlaylistPairOfSong(
+        videoId: String,
+        localPlaylistId: Long,
+    ) = databaseDao.getPlaylistPairOfSong(videoId, localPlaylistId)
+
     suspend fun getPlaylistPairSong(
         playlistId: Long,
         limit: Int,
@@ -352,9 +356,8 @@ internal class LocalDataSource(
         playlistId: Long,
         offset: Int,
         filterState: FilterState,
-        totalCount: Int,
-    ) = if (filterState == FilterState.OlderFirst) {
-        databaseDao.getPlaylistPairSongByOffsetAsc(
+    ) = if (filterState == FilterState.CustomOrder) {
+        databaseDao.getPlaylistPairSongByOffset(
             playlistId,
             offset * 50,
         )
@@ -364,30 +367,38 @@ internal class LocalDataSource(
             offset * 50,
         )
     } else {
-        Logger.w("Pair LocalPlaylistViewModel", "getPlaylistPairSongByOffset: ${totalCount - (offset + 1) * 50}")
-        if ((totalCount - (offset + 1) * 50) > 0) {
-            databaseDao
-                .getPlaylistPairSongByOffsetDesc(
-                    playlistId,
-                    totalCount - (offset + 1) * 50,
-                ).reversed()
-        } else if ((totalCount - (offset + 1) * 50) >= -50) {
-            databaseDao
-                .getPlaylistPairSongByFromToDesc(
-                    playlistId,
-                    0,
-                    totalCount - (offset + 1) * 50 + 50,
-                ).reversed()
-        } else if (offset == 0) {
-            databaseDao
-                .getPlaylistPairSongByOffsetDesc(
-                    playlistId,
-                    0,
-                )?.reversed()
-        } else {
-            null
-        }
+        null
     }
+
+    suspend fun getPlaylistPairSongByTime(
+        playlistId: Long,
+        filterState: FilterState,
+        localDateTime: LocalDateTime,
+    ) = if (filterState == FilterState.OlderFirst) {
+        databaseDao.getPlaylistPairSongByOlderFirst(
+            playlistId,
+            localDateTime,
+        )
+    } else if (filterState == FilterState.NewerFirst) {
+        databaseDao.getPlaylistPairSongByNewerFirst(
+            playlistId,
+            localDateTime,
+        )
+    } else {
+        null
+    }
+
+    suspend fun getNewestPlaylistPairSong(playlistId: Long) = databaseDao.getNewestPlaylistPairSong(playlistId)
+
+    suspend fun editPositionOfSongInPlaylist(
+        playlistId: Long,
+        videoId: String,
+        newPosition: Int,
+    ) = databaseDao.editPositionOfSongInPlaylist(
+        playlistId,
+        videoId,
+        newPosition,
+    )
 
     suspend fun deletePairSongLocalPlaylist(
         playlistId: Long,

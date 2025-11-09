@@ -318,5 +318,6 @@ interface DataStoreManager {
         const val LOCAL_PLAYLIST_FILTER_OLDER_FIRST = "older_first"
         const val LOCAL_PLAYLIST_FILTER_NEWER_FIRST = "newer_first"
         const val LOCAL_PLAYLIST_FILTER_TITLE = "title"
+        const val LOCAL_PLAYLIST_FILTER_CUSTOM_ORDER = "custom_order"
     }
 }

@@ -11,15 +11,25 @@ import com.maxrave.data.extension.getFullDataFromDB
 import com.maxrave.data.mapping.toListTrack
 import com.maxrave.data.mapping.toTrack
 import com.maxrave.data.paging.LocalPlaylistPagingSource
+import com.maxrave.data.paging.LocalPlaylistTimeBasedPagingSource
 import com.maxrave.data.parser.parseSetVideoId
-import com.maxrave.domain.data.entities.*
+import com.maxrave.domain.data.entities.DownloadState
+import com.maxrave.domain.data.entities.LocalPlaylistEntity
 import com.maxrave.domain.data.entities.LocalPlaylistEntity.YouTubeSyncState.Synced
 import com.maxrave.domain.data.entities.LocalPlaylistEntity.YouTubeSyncState.Syncing
+import com.maxrave.domain.data.entities.PairSongLocalPlaylist
+import com.maxrave.domain.data.entities.SetVideoIdEntity
+import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.browse.playlist.PlaylistState
 import com.maxrave.domain.extension.now
 import com.maxrave.domain.repository.LocalPlaylistRepository
-import com.maxrave.domain.utils.*
+import com.maxrave.domain.utils.FilterState
+import com.maxrave.domain.utils.LocalResource
+import com.maxrave.domain.utils.toListVideoId
+import com.maxrave.domain.utils.toSongEntity
+import com.maxrave.domain.utils.wrapDataResource
+import com.maxrave.domain.utils.wrapMessageResource
 import com.maxrave.kotlinytmusicscraper.YouTube
 import com.maxrave.kotlinytmusicscraper.extension.verifyYouTubePlaylistId
 import com.maxrave.kotlinytmusicscraper.models.MusicShelfRenderer
@@ -30,6 +40,8 @@ import com.maxrave.kotlinytmusicscraper.pages.SearchPage
 import com.maxrave.kotlinytmusicscraper.parser.getPlaylistContinuation
 import com.maxrave.logger.Logger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -99,20 +111,30 @@ internal class LocalPlaylistRepositoryImpl(
     override fun getTracksPaging(
         id: Long,
         filter: FilterState,
-    ): Flow<PagingData<SongEntity>> {
-        val totalCount = runBlocking(Dispatchers.IO) { localDataSource.getLocalPlaylist(id)?.tracks?.size ?: 0 }
-        Logger.w(TAG, "getTracksPaging: $totalCount")
-        return Pager(
-            config = PagingConfig(pageSize = 100, prefetchDistance = 5),
-            pagingSourceFactory = {
-                LocalPlaylistPagingSource(
-                    playlistId = id,
-                    totalCount = totalCount,
-                    filter = filter,
-                    localDataSource = localDataSource,
-                )
-            },
-        ).flow
+    ): Flow<PagingData<Pair<SongEntity, PairSongLocalPlaylist>>> {
+        if (filter == FilterState.CustomOrder || filter == FilterState.Title) {
+            return Pager(
+                config = PagingConfig(pageSize = 100, prefetchDistance = 5),
+                pagingSourceFactory = {
+                    LocalPlaylistPagingSource(
+                        playlistId = id,
+                        filter = filter,
+                        localDataSource = localDataSource,
+                    )
+                },
+            ).flow
+        } else {
+            return Pager(
+                config = PagingConfig(pageSize = 100, prefetchDistance = 5),
+                pagingSourceFactory = {
+                    LocalPlaylistTimeBasedPagingSource(
+                        playlistId = id,
+                        filter = filter,
+                        localDataSource = localDataSource,
+                    )
+                },
+            ).flow
+        }
     }
 
     override suspend fun getFullPlaylistTracks(id: Long): List<SongEntity> {
@@ -126,7 +148,6 @@ internal class LocalPlaylistRepositoryImpl(
                     playlistId = id,
                     filterState = FilterState.OlderFirst,
                     offset = currentPage,
-                    totalCount = playlist.tracks?.size ?: 0,
                 )
             if (pairs.isNullOrEmpty()) {
                 break
@@ -758,9 +779,51 @@ internal class LocalPlaylistRepositoryImpl(
         playlistId: Long,
         offset: Int,
         filterState: FilterState,
-        totalCount: Int,
     ): Flow<List<PairSongLocalPlaylist>?> =
         flow {
-            emit(localDataSource.getPlaylistPairSongByOffset(playlistId, offset, filterState, totalCount))
+            emit(localDataSource.getPlaylistPairSongByOffset(playlistId, offset, filterState))
+        }.flowOn(Dispatchers.IO)
+
+    override fun getPlaylistPairSongByTime(
+        playlistId: Long,
+        filterState: FilterState,
+        localDateTime: LocalDateTime,
+    ): Flow<List<PairSongLocalPlaylist>?> =
+        flow {
+            emit(
+                localDataSource.getPlaylistPairSongByTime(
+                    playlistId,
+                    filterState,
+                    localDateTime,
+                ),
+            )
+        }.flowOn(Dispatchers.IO)
+
+    override fun getPlaylistPairOfSong(
+        playlistId: Long,
+        videoId: String,
+    ): Flow<PairSongLocalPlaylist?> =
+        flow {
+            emit(
+                localDataSource.getPlaylistPairOfSong(
+                    videoId,
+                    playlistId,
+                ),
+            )
+        }.flowOn(Dispatchers.IO)
+
+    override fun changePositionOfSongInPlaylist(
+        playlistId: Long,
+        videoId: String,
+        newPosition: Int,
+    ): Flow<String> =
+        flow {
+            localDataSource.editPositionOfSongInPlaylist(
+                playlistId,
+                videoId,
+                newPosition,
+            )
+            delay(100)
+            emit("Position updated")
         }.flowOn(Dispatchers.IO)
 }

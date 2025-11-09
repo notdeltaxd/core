@@ -10,6 +10,7 @@ import com.maxrave.domain.data.model.browse.playlist.PlaylistState
 import com.maxrave.domain.utils.FilterState
 import com.maxrave.domain.utils.LocalResource
 import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.LocalDateTime
 
 interface LocalPlaylistRepository {
     fun getLocalPlaylist(id: Long): Flow<LocalResource<LocalPlaylistEntity?>>
@@ -42,8 +43,24 @@ interface LocalPlaylistRepository {
         playlistId: Long,
         offset: Int,
         filterState: FilterState,
-        totalCount: Int,
     ): Flow<List<PairSongLocalPlaylist>?>
+
+    fun getPlaylistPairSongByTime(
+        playlistId: Long,
+        filterState: FilterState,
+        localDateTime: LocalDateTime,
+    ): Flow<List<PairSongLocalPlaylist>?>
+
+    fun getPlaylistPairOfSong(
+        playlistId: Long,
+        videoId: String,
+    ): Flow<PairSongLocalPlaylist?>
+
+    fun changePositionOfSongInPlaylist(
+        playlistId: Long,
+        videoId: String,
+        newPosition: Int,
+    ): Flow<String>
 
     fun downloadStateFlow(id: Long): Flow<Int>
 
@@ -54,7 +71,7 @@ interface LocalPlaylistRepository {
     fun getTracksPaging(
         id: Long,
         filter: FilterState,
-    ): Flow<PagingData<SongEntity>>
+    ): Flow<PagingData<Pair<SongEntity, PairSongLocalPlaylist>>>
 
     suspend fun getFullPlaylistTracks(id: Long): List<SongEntity>
 
@@ -67,7 +84,7 @@ interface LocalPlaylistRepository {
 
     fun deleteLocalPlaylist(
         id: Long,
-        successMessage: String
+        successMessage: String,
     ): Flow<LocalResource<String>>
 
     fun updateTitleLocalPlaylist(
@@ -81,13 +98,13 @@ interface LocalPlaylistRepository {
     fun updateThumbnailLocalPlaylist(
         id: Long,
         newThumbnail: String,
-        successMessage: String
+        successMessage: String,
     ): Flow<LocalResource<String>>
 
     fun updateDownloadState(
         id: Long,
         downloadState: Int,
-        successMessage: String
+        successMessage: String,
     ): Flow<LocalResource<String>>
 
     fun syncYouTubePlaylistToLocalPlaylist(
@@ -103,18 +120,21 @@ interface LocalPlaylistRepository {
         errorMessage: String,
     ): Flow<LocalResource<String>>
 
-    fun unsyncLocalPlaylist(id: Long, successMessage: String): Flow<LocalResource<String>>
+    fun unsyncLocalPlaylist(
+        id: Long,
+        successMessage: String,
+    ): Flow<LocalResource<String>>
 
     fun updateSyncState(
         id: Long,
         syncState: Int,
-        successMessage: String
+        successMessage: String,
     ): Flow<LocalResource<String>>
 
     fun updateYouTubePlaylistId(
         id: Long,
         youtubePlaylistId: String,
-        successMessage: String
+        successMessage: String,
     ): Flow<LocalResource<String>>
 
     fun updateListTrackSynced(id: Long): Flow<Boolean>
