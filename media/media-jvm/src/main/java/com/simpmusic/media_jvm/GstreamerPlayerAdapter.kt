@@ -1546,7 +1546,8 @@ class GstreamerPlayerAdapter(
                         .getStream(
                             dataStoreManager,
                             videoId,
-                            true,
+                            isDownloading = false,
+                            isVideo = true,
                             muxed = true,
                         ).lastOrNull()
                         ?.let {
@@ -1560,7 +1561,8 @@ class GstreamerPlayerAdapter(
                         .getStream(
                             dataStoreManager,
                             videoId,
-                            false,
+                            isDownloading = false,
+                            isVideo = false,
                         ).lastOrNull()
                         ?.let {
                             Logger.d(TAG, "Stream Audio $it")

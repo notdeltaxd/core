@@ -1,6 +1,7 @@
 package com.maxrave.data.mediaservice
 
 import com.maxrave.common.ASC
+import com.maxrave.common.CUSTOM_ORDER
 import com.maxrave.common.Config.ALBUM_CLICK
 import com.maxrave.common.Config.PLAYLIST_CLICK
 import com.maxrave.common.Config.RADIO_CLICK
@@ -12,6 +13,8 @@ import com.maxrave.common.DESC
 import com.maxrave.common.LOCAL_PLAYLIST_ID
 import com.maxrave.common.LOCAL_PLAYLIST_ID_SAVED_QUEUE
 import com.maxrave.common.MERGING_DATA_TYPE
+import com.maxrave.common.TITLE
+import com.maxrave.data.db.Converters
 import com.maxrave.domain.data.entities.NewFormatEntity
 import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.model.browse.album.Track
@@ -1009,62 +1012,132 @@ class JvmMediaPlayerHandlerImpl(
                                     }
                                 }
                             }
-                    } else if (continuation.startsWith(ASC) || continuation.startsWith(DESC)) {
-                        val filter = if (continuation.startsWith(ASC)) FilterState.OlderFirst else FilterState.NewerFirst
-                        val offset =
-                            if (filter == FilterState.OlderFirst) {
-                                continuation
-                                    .removePrefix(
-                                        ASC,
-                                    ).toInt()
+                    } else if (
+                        continuation.startsWith(ASC) ||
+                        continuation.startsWith(DESC) ||
+                        continuation.startsWith(CUSTOM_ORDER) ||
+                        continuation.startsWith(TITLE)
+                    ) {
+                        val filter =
+                            if (continuation.startsWith(ASC)) {
+                                FilterState.OlderFirst
+                            } else if (continuation.startsWith(DESC)) {
+                                FilterState.NewerFirst
+                            } else if (continuation.startsWith(CUSTOM_ORDER)) {
+                                FilterState.CustomOrder
                             } else {
-                                continuation.removePrefix(DESC).toInt()
+                                FilterState.Title
                             }
-                        val total =
-                            localPlaylistRepository
-                                .getLocalPlaylist(longId)
-                                .lastOrNull()
-                                ?.data
-                                ?.tracks
-                                ?.size ?: 0
-                        localPlaylistRepository
-                            .getPlaylistPairSongByOffset(
-                                longId,
-                                offset,
-                                filter,
-                                total,
-                            ).lastOrNull()
-                            ?.let { pair ->
-                                Logger.w("Check loadMore response", pair.size.toString())
-                                songRepository.getSongsByListVideoId(pair.map { it.songId }).single().let { songs ->
-                                    if (songs.isNotEmpty()) {
-                                        delay(300)
-                                        loadMoreCatalog(songs.toArrayListTrack())
-                                        _queueData.update {
-                                            it.copy(
-                                                data =
-                                                    it.data.copy(
-                                                        continuation =
-                                                            if (filter ==
-                                                                FilterState.OlderFirst
-                                                            ) {
-                                                                ASC + (offset + 1)
-                                                            } else {
-                                                                DESC + (offset + 1).toString()
-                                                            },
-                                                    ),
-                                            )
-                                        }
-                                    } else {
-                                        _queueData.update {
-                                            it.copy(
-                                                queueState = QueueData.StateSource.STATE_INITIALIZED,
-                                            )
-                                        }
-                                        reorderShuffledQueue(player.getCurrentMediaTimeLine())
+                        val converters = Converters()
+
+                        when (filter) {
+                            FilterState.NewerFirst, FilterState.OlderFirst -> {
+                                val localDateTime =
+                                    try {
+                                        val timestampString =
+                                            if (filter == FilterState.OlderFirst) {
+                                                continuation.removePrefix(ASC)
+                                            } else {
+                                                continuation.removePrefix(DESC)
+                                            }
+                                        val timestamp = timestampString.toLong()
+                                        converters.fromTimestamp(timestamp)
+                                            ?: return@launch
+                                    } catch (e: Exception) {
+                                        Logger.e(TAG, "loadMore: Failed to parse timestamp", e)
+                                        return@launch
                                     }
-                                }
+                                localPlaylistRepository
+                                    .getPlaylistPairSongByTime(
+                                        longId,
+                                        filter,
+                                        localDateTime,
+                                    ).lastOrNull()
+                                    ?.let { pair ->
+                                        Logger.w("Check loadMore response", pair.size.toString())
+                                        songRepository.getSongsByListVideoId(pair.map { it.songId }).single().let { songs ->
+                                            if (songs.isNotEmpty()) {
+                                                delay(300)
+                                                loadMoreCatalog(songs.toArrayListTrack())
+                                                _queueData.update {
+                                                    it.copy(
+                                                        data =
+                                                            it.data.copy(
+                                                                continuation =
+                                                                    if (filter ==
+                                                                        FilterState.OlderFirst
+                                                                    ) {
+                                                                        ASC +
+                                                                            pair.lastOrNull()?.inPlaylist?.let { inPlaylist ->
+                                                                                converters.dateToTimestamp(inPlaylist)
+                                                                            }
+                                                                    } else {
+                                                                        DESC +
+                                                                            pair.lastOrNull()?.inPlaylist?.let { inPlaylist ->
+                                                                                converters.dateToTimestamp(inPlaylist)
+                                                                            }
+                                                                    },
+                                                            ),
+                                                    )
+                                                }
+                                            } else {
+                                                _queueData.update {
+                                                    it.copy(
+                                                        queueState = QueueData.StateSource.STATE_INITIALIZED,
+                                                    )
+                                                }
+                                                reorderShuffledQueue(player.getCurrentMediaTimeLine())
+                                            }
+                                        }
+                                    }
                             }
+
+                            FilterState.Title, FilterState.CustomOrder -> {
+                                val offset =
+                                    if (filter == FilterState.CustomOrder) {
+                                        continuation.removePrefix(CUSTOM_ORDER).toInt()
+                                    } else {
+                                        continuation.removePrefix(TITLE).toInt()
+                                    }
+                                localPlaylistRepository
+                                    .getPlaylistPairSongByOffset(
+                                        longId,
+                                        offset,
+                                        filter,
+                                    ).lastOrNull()
+                                    ?.let { pair ->
+                                        Logger.w("Check loadMore response", pair.size.toString())
+                                        songRepository.getSongsByListVideoId(pair.map { it.songId }).single().let { songs ->
+                                            if (songs.isNotEmpty()) {
+                                                delay(300)
+                                                loadMoreCatalog(songs.toArrayListTrack())
+                                                _queueData.update {
+                                                    it.copy(
+                                                        data =
+                                                            it.data.copy(
+                                                                continuation =
+                                                                    if (filter ==
+                                                                        FilterState.CustomOrder
+                                                                    ) {
+                                                                        CUSTOM_ORDER + (offset + 1)
+                                                                    } else {
+                                                                        TITLE + (offset + 1).toString()
+                                                                    },
+                                                            ),
+                                                    )
+                                                }
+                                            } else {
+                                                _queueData.update {
+                                                    it.copy(
+                                                        queueState = QueueData.StateSource.STATE_INITIALIZED,
+                                                    )
+                                                }
+                                                reorderShuffledQueue(player.getCurrentMediaTimeLine())
+                                            }
+                                        }
+                                    }
+                            }
+                        }
                     }
                 }
             } else {

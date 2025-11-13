@@ -36,7 +36,6 @@ import kotlinx.coroutines.flow.lastOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.datetime.LocalDateTime
 import okhttp3.OkHttpClient
 import java.util.concurrent.Executor
 
@@ -92,6 +91,7 @@ internal class DownloadUtils(
                         .getStream(
                             dataStoreManager,
                             id,
+                            isDownloading = true,
                             true,
                         ).lastOrNull()
                         ?.let {
@@ -114,6 +114,7 @@ internal class DownloadUtils(
                         .getStream(
                             dataStoreManager,
                             mediaId,
+                            isDownloading = true,
                             isVideo = false,
                         ).lastOrNull()
                         ?.let {

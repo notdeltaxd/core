@@ -278,7 +278,8 @@ private fun provideResolvingDataSourceFactory(
                     .getStream(
                         dataStoreManager,
                         id,
-                        true,
+                        isDownloading = false,
+                        isVideo = true,
                     ).lastOrNull()
                     ?.let {
                         Logger.d("Stream", it)
@@ -303,6 +304,7 @@ private fun provideResolvingDataSourceFactory(
                     .getStream(
                         dataStoreManager,
                         mediaId,
+                        isDownloading = false,
                         isVideo = false,
                     ).lastOrNull()
                     ?.let {

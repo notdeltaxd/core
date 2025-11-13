@@ -104,6 +104,32 @@ internal class DataStoreManagerImpl(
         }
     }
 
+    override val downloadQuality: Flow<String> =
+        settingsDataStore.data.map { preferences ->
+            preferences[DOWNLOAD_QUALITY] ?: COMMON_QUALITY.items[0].toString()
+        }
+
+    override suspend fun setDownloadQuality(quality: String) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[DOWNLOAD_QUALITY] = quality
+            }
+        }
+    }
+
+    override val videoDownloadQuality: Flow<String> =
+        settingsDataStore.data.map { preferences ->
+            preferences[VIDEO_DOWNLOAD_QUALITY] ?: "720p"
+        }
+
+    override suspend fun setVideoDownloadQuality(quality: String) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[VIDEO_DOWNLOAD_QUALITY] = quality
+            }
+        }
+    }
+
     override val language: Flow<String> =
         settingsDataStore.data.map { preferences ->
             preferences[stringPreferencesKey(SELECTED_LANGUAGE)] ?: SUPPORTED_LANGUAGE.codes.first()
@@ -738,6 +764,44 @@ internal class DataStoreManagerImpl(
         }
     }
 
+    override val keepYouTubePlaylistOffline: Flow<String> =
+        settingsDataStore.data.map { preferences ->
+            preferences[KEEP_YOUTUBE_PLAYLIST_OFFLINE] ?: FALSE
+        }
+
+    override suspend fun setKeepYouTubePlaylistOffline(keep: Boolean) {
+        withContext(Dispatchers.IO) {
+            if (keep) {
+                settingsDataStore.edit { settings ->
+                    settings[KEEP_YOUTUBE_PLAYLIST_OFFLINE] = TRUE
+                }
+            } else {
+                settingsDataStore.edit { settings ->
+                    settings[KEEP_YOUTUBE_PLAYLIST_OFFLINE] = FALSE
+                }
+            }
+        }
+    }
+
+    override val combineLocalAndYouTubeLiked: Flow<String> =
+        settingsDataStore.data.map { preferences ->
+            preferences[COMBINE_LOCAL_AND_YOUTUBE_LIKED] ?: FALSE
+        }
+
+    override suspend fun setCombineLocalAndYouTubeLiked(combine: Boolean) {
+        withContext(Dispatchers.IO) {
+            if (combine) {
+                settingsDataStore.edit { settings ->
+                    settings[COMBINE_LOCAL_AND_YOUTUBE_LIKED] = TRUE
+                }
+            } else {
+                settingsDataStore.edit { settings ->
+                    settings[COMBINE_LOCAL_AND_YOUTUBE_LIKED] = FALSE
+                }
+            }
+        }
+    }
+
     override val shouldShowLogInRequiredAlert =
         settingsDataStore.data.map { preferences ->
             preferences[SHOULD_SHOW_LOG_IN_REQUIRED_ALERT] ?: TRUE
@@ -1174,6 +1238,8 @@ internal class DataStoreManagerImpl(
         val LOGGED_IN = stringPreferencesKey("logged_in")
         val LOCATION = stringPreferencesKey("location")
         val QUALITY = stringPreferencesKey("quality")
+        val DOWNLOAD_QUALITY = stringPreferencesKey("download_quality")
+        val VIDEO_DOWNLOAD_QUALITY = stringPreferencesKey("video_download_quality")
         val NORMALIZE_VOLUME = stringPreferencesKey("normalize_volume")
         val SKIP_SILENT = stringPreferencesKey("skip_silent")
         val SAVE_STATE_OF_PLAYBACK = stringPreferencesKey("save_state_of_playback")
@@ -1214,6 +1280,8 @@ internal class DataStoreManagerImpl(
         val PROXY_HOST = stringPreferencesKey("proxy_host")
         val PROXY_PORT = intPreferencesKey("proxy_port")
         val ENDLESS_QUEUE = stringPreferencesKey("endless_queue")
+        val KEEP_YOUTUBE_PLAYLIST_OFFLINE = stringPreferencesKey("keep_youtube_playlist_offline")
+        val COMBINE_LOCAL_AND_YOUTUBE_LIKED = stringPreferencesKey("combine_local_and_youtube_liked")
         val SHOULD_SHOW_LOG_IN_REQUIRED_ALERT = stringPreferencesKey("should_show_log_in_required_alert")
         val AUTO_CHECK_FOR_UPDATES = stringPreferencesKey("auto_check_for_updates")
         val UPDATE_CHANNEL = stringPreferencesKey("update_channel")

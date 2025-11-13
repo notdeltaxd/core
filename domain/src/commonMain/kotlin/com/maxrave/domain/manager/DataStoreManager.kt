@@ -24,6 +24,12 @@ interface DataStoreManager {
 
     suspend fun setQuality(quality: String)
 
+    val downloadQuality: Flow<String>
+    suspend fun setDownloadQuality(quality: String)
+
+    val videoDownloadQuality: Flow<String>
+    suspend fun setVideoDownloadQuality(quality: String)
+
     val language: Flow<String>
 
     fun getString(key: String): Flow<String?>
@@ -181,6 +187,12 @@ interface DataStoreManager {
     val endlessQueue: Flow<String>
 
     suspend fun setEndlessQueue(endlessQueue: Boolean)
+
+    val keepYouTubePlaylistOffline: Flow<String>
+    suspend fun setKeepYouTubePlaylistOffline(keep: Boolean)
+
+    val combineLocalAndYouTubeLiked: Flow<String>
+    suspend fun setCombineLocalAndYouTubeLiked(combine: Boolean)
 
     val shouldShowLogInRequiredAlert: Flow<String>
 

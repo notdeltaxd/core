@@ -83,15 +83,24 @@ internal class StreamRepositoryImpl(
     override fun getStream(
         dataStoreManager: DataStoreManager,
         videoId: String,
+        isDownloading: Boolean,
         isVideo: Boolean,
         muxed: Boolean
     ): Flow<String?> =
         flow {
-            val itag = QUALITY.itags.getOrNull(QUALITY.items.indexOf(dataStoreManager.quality.first()))
+            val itag = if (isDownloading)
+                    QUALITY.itags.getOrNull(QUALITY.items.indexOf(dataStoreManager.downloadQuality.first()))
+                else
+                    QUALITY.itags.getOrNull(QUALITY.items.indexOf(dataStoreManager.quality.first()))
             val videoItag =
                 if (!muxed) {
                     VIDEO_QUALITY.itags.getOrNull(
-                        VIDEO_QUALITY.items.indexOf(dataStoreManager.videoQuality.first()),
+                        VIDEO_QUALITY.items.indexOf(
+                            if (isDownloading)
+                                dataStoreManager.videoDownloadQuality.first()
+                            else
+                                dataStoreManager.videoQuality.first()
+                        ),
                     )
                         ?: 134
                 } else {
