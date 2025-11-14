@@ -14,6 +14,7 @@ import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.download.DownloadProgress
 import com.maxrave.domain.data.model.streams.YouTubeWatchEndpoint
 import com.maxrave.domain.manager.DataStoreManager
+import com.maxrave.domain.manager.DataStoreManager.Values.TRUE
 import com.maxrave.domain.repository.SongRepository
 import com.maxrave.domain.utils.Resource
 import com.maxrave.kotlinytmusicscraper.YouTube
@@ -130,7 +131,20 @@ internal class SongRepositoryImpl(
     override suspend fun updateLikeStatus(
         videoId: String,
         likeStatus: Int,
-    ) = withContext(Dispatchers.Main) { localDataSource.updateLiked(likeStatus, videoId) }
+    ) = withContext(Dispatchers.Main) {
+        localDataSource.updateLiked(likeStatus, videoId)
+        if (dataStoreManager.combineLocalAndYouTubeLiked.first() == TRUE) {
+            if (likeStatus == 1) {
+                addToYouTubeLiked(videoId).collect { result ->
+                    Logger.d(TAG, "updateLikeStatus -> addToYouTubeLiked: $result")
+                }
+            } else {
+                removeFromYouTubeLiked(videoId).collect { result ->
+                    Logger.d(TAG, "updateLikeStatus -> removeFromYouTubeLiked: $result")
+                }
+            }
+        }
+    }
 
     override fun updateSongInLibrary(
         inLibrary: LocalDateTime,

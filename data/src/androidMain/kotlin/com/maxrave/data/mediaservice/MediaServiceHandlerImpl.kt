@@ -638,9 +638,9 @@ internal class MediaServiceHandlerImpl(
                 onUpdateNotification.invoke(
                     listOf(
                         GenericCommandButton.Like(liked),
+                        GenericCommandButton.Shuffle(isShuffled = _controlState.value.isShuffle),
                         GenericCommandButton.Repeat(repeatState = _controlState.value.repeatState),
                         GenericCommandButton.Radio,
-                        GenericCommandButton.Shuffle(isShuffled = _controlState.value.isShuffle),
                     ),
                 )
             }

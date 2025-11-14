@@ -75,9 +75,8 @@ internal class SimpleMediaSessionCallback(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
     ): MediaSession.ConnectionResult {
-        val connectionResult = super.onConnect(session, controller)
         val sessionCommands =
-            connectionResult.availableSessionCommands
+            MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
                 .buildUpon()
                 // Add custom commands
                 .add(SessionCommand(MEDIA_CUSTOM_COMMAND.LIKE, Bundle()))
@@ -85,10 +84,9 @@ internal class SimpleMediaSessionCallback(
                 .add(SessionCommand(MEDIA_CUSTOM_COMMAND.RADIO, Bundle()))
                 .add(SessionCommand(MEDIA_CUSTOM_COMMAND.SHUFFLE, Bundle()))
                 .build()
-        return MediaSession.ConnectionResult.accept(
-            sessionCommands,
-            connectionResult.availablePlayerCommands,
-        )
+        return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+            .setAvailableSessionCommands(sessionCommands)
+            .build()
     }
 
     @UnstableApi

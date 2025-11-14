@@ -3,6 +3,7 @@ package com.maxrave.domain.repository
 import com.maxrave.domain.data.entities.ArtistEntity
 import com.maxrave.domain.data.entities.PlaylistEntity
 import com.maxrave.domain.data.entities.SongEntity
+import com.maxrave.domain.data.entities.YourYouTubePlaylistList
 import com.maxrave.domain.data.model.browse.playlist.PlaylistBrowse
 import com.maxrave.domain.data.model.searchResult.playlists.PlaylistsResult
 import com.maxrave.domain.data.type.PlaylistType
@@ -74,4 +75,16 @@ interface PlaylistRepository {
         playlistId: String,
         newTitle: String,
     ): Flow<Resource<String>>
+
+    suspend fun insertYourYouTubePlaylist(yourYouTubePlaylist: YourYouTubePlaylistList)
+
+    /**
+     * @param emailPageId = $email_$pageId
+     */
+    fun getYourYouTubePlaylistList(
+        emailPageId: String
+    ): Flow<YourYouTubePlaylistList?>
+
+    suspend fun deleteAllYourYouTubePlaylist()
+
 }

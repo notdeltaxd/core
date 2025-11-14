@@ -23,6 +23,7 @@ import com.maxrave.domain.data.entities.SetVideoIdEntity
 import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.entities.SongInfoEntity
 import com.maxrave.domain.data.entities.TranslatedLyricsEntity
+import com.maxrave.domain.data.entities.YourYouTubePlaylistList
 
 @Database(
     entities = [
@@ -30,8 +31,9 @@ import com.maxrave.domain.data.entities.TranslatedLyricsEntity
         AlbumEntity::class, PlaylistEntity::class, LocalPlaylistEntity::class, LyricsEntity::class, QueueEntity::class,
         SetVideoIdEntity::class, PairSongLocalPlaylist::class, GoogleAccountEntity::class, FollowedArtistSingleAndAlbum::class,
         NotificationEntity::class, TranslatedLyricsEntity::class, PodcastsEntity::class, EpisodeEntity::class,
+        YourYouTubePlaylistList::class
     ],
-    version = 19,
+    version = 20,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3), AutoMigration(
@@ -57,6 +59,9 @@ import com.maxrave.domain.data.entities.TranslatedLyricsEntity
         AutoMigration(18, 19),
         AutoMigration(17, 19),
         AutoMigration(16, 19),
+        AutoMigration(19, 20),
+        AutoMigration(18, 20),
+        AutoMigration(17, 20),
     ],
 )
 @TypeConverters(Converters::class)

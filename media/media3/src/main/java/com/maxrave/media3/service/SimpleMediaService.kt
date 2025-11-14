@@ -112,10 +112,9 @@ internal class SimpleMediaService :
             )
 
         simpleMediaServiceHandler.onUpdateNotification = { list ->
-            mediaSession?.setCustomLayout(
-                list.map {
-                    it.toCommandButton(this)
-                },
+            val commandButtonList = list.map { it.toCommandButton(this) }
+            mediaSession?.setMediaButtonPreferences(
+                commandButtonList
             )
         }
 

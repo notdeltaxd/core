@@ -1,6 +1,7 @@
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
+import androidx.room.OnConflictStrategy.Companion.REPLACE
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.RoomRawQuery
@@ -25,6 +26,7 @@ import com.maxrave.domain.data.entities.SetVideoIdEntity
 import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.entities.SongInfoEntity
 import com.maxrave.domain.data.entities.TranslatedLyricsEntity
+import com.maxrave.domain.data.entities.YourYouTubePlaylistList
 import com.maxrave.domain.data.type.PlaylistType
 import com.maxrave.domain.data.type.RecentlyType
 import com.maxrave.domain.extension.now
@@ -780,4 +782,16 @@ interface DatabaseDao {
     // Delete methods
     @Query("DELETE FROM podcast_table WHERE podcastId = :podcastId")
     suspend fun deletePodcast(podcastId: String): Int
+
+    // Your YouTube Playlist list
+    @Insert(onConflict = REPLACE)
+    suspend fun insertYourYouTubePlaylist(yourYouTubePlaylist: YourYouTubePlaylistList)
+
+    @Query("SELECT * FROM your_youtube_playlist_list WHERE emailPageId = :emailPageId LIMIT 1")
+    suspend fun getYourYouTubePlaylistList(
+        emailPageId: String
+    ): YourYouTubePlaylistList?
+
+    @Query("DELETE FROM your_youtube_playlist_list")
+    suspend fun deleteAllYourYouTubePlaylist()
 }

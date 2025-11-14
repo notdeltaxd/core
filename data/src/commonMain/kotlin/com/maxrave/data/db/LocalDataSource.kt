@@ -19,6 +19,7 @@ import com.maxrave.domain.data.entities.SetVideoIdEntity
 import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.entities.SongInfoEntity
 import com.maxrave.domain.data.entities.TranslatedLyricsEntity
+import com.maxrave.domain.data.entities.YourYouTubePlaylistList
 import com.maxrave.domain.extension.now
 import com.maxrave.domain.utils.FilterState
 import kotlinx.datetime.LocalDateTime
@@ -514,4 +515,16 @@ internal class LocalDataSource(
     )
 
     suspend fun updatePodcastInLibraryNow(id: String) = databaseDao.updatePodcastInLibrary(id, now())
+
+    suspend fun insertYourYouTubePlaylist(yourYouTubePlaylist: YourYouTubePlaylistList) =
+        databaseDao.insertYourYouTubePlaylist(yourYouTubePlaylist)
+
+    suspend fun getYourYouTubePlaylistList(
+        emailPageId: String
+    ): YourYouTubePlaylistList? =
+        databaseDao.getYourYouTubePlaylistList(emailPageId)
+
+    suspend fun deleteAllYourYouTubePlaylist() =
+        databaseDao.deleteAllYourYouTubePlaylist()
+
 }
