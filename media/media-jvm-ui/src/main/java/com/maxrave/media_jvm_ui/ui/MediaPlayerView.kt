@@ -111,7 +111,6 @@ fun MediaPlayerViewWithUrl(
                     JPanel().apply {
                         layout = BoxLayout(this, BoxLayout.Y_AXIS)
                         background = java.awt.Color(255, 255, 255, 0)
-                        preferredSize = Dimension(sizePx.first, sizePx.second)
                         add(gsVideoComponent)
                     }
                 },
