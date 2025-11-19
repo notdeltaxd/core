@@ -12,8 +12,8 @@ fun loadAllModules() {
             repositoryModule,
         ),
     )
-    loadMediaService()
     loadKoinModules(mediaHandlerModule)
+    loadMediaService()
 }
 
 expect fun loadMediaService()

@@ -79,14 +79,13 @@ actual class Extractor {
     actual fun newPipePlayer(videoId: String): List<Pair<Int, String>> {
         val streamInfo = StreamInfo.getInfo(NewPipe.getService(0), "https://www.youtube.com/watch?v=$videoId")
         val streamsList = streamInfo.audioStreams + streamInfo.videoStreams + streamInfo.videoOnlyStreams
-        return streamsList
-            .mapNotNull {
-                (it.itagItem?.id ?: return@mapNotNull null) to it.content
-            }.apply {
-                (streamInfo.dashMpdUrl ?: streamInfo.hlsUrl)?.let {
-                    this + (96 to it)
-                }
-            }
+        val temp =
+            streamsList
+                .mapNotNull {
+                    (it.itagItem?.id ?: return@mapNotNull null) to it.content
+                }.toMutableList()
+        temp.add(96 to (streamInfo.dashMpdUrl.takeIf { !it.isNullOrEmpty() } ?: streamInfo.hlsUrl))
+        return temp
     }
 
     actual fun mergeAudioVideoDownload(filePath: String): DownloadProgress = DownloadProgress.failed("Not supported on JVM")

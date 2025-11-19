@@ -25,7 +25,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 internal class StreamRepositoryImpl(
@@ -85,21 +84,24 @@ internal class StreamRepositoryImpl(
         videoId: String,
         isDownloading: Boolean,
         isVideo: Boolean,
-        muxed: Boolean
+        muxed: Boolean,
     ): Flow<String?> =
         flow {
-            val itag = if (isDownloading)
+            val itag =
+                if (isDownloading) {
                     QUALITY.itags.getOrNull(QUALITY.items.indexOf(dataStoreManager.downloadQuality.first()))
-                else
+                } else {
                     QUALITY.itags.getOrNull(QUALITY.items.indexOf(dataStoreManager.quality.first()))
+                }
             val videoItag =
                 if (!muxed) {
                     VIDEO_QUALITY.itags.getOrNull(
                         VIDEO_QUALITY.items.indexOf(
-                            if (isDownloading)
+                            if (isDownloading) {
                                 dataStoreManager.videoDownloadQuality.first()
-                            else
+                            } else {
                                 dataStoreManager.videoQuality.first()
+                            },
                         ),
                     )
                         ?: 134
@@ -108,7 +110,7 @@ internal class StreamRepositoryImpl(
                 }
             // 134, 136, 137
             youTube
-                .player(videoId, shouldYtdlp = itag == 774 || muxed)
+                .player(videoId, shouldYtdlp = itag == 774, noLogIn = muxed)
                 .onSuccess { data ->
                     val response = data.second
                     if (data.third == MediaType.Song) {
@@ -171,82 +173,91 @@ internal class StreamRepositoryImpl(
                         format = superFormat
                     }
                     if (muxed) {
-                        format = formatList.filter {
-                            val url = it.url
-                            url != null && youTube.isManifestUrl(url)
-                        }.maxByOrNull { it.width ?: 0 } ?: formatList.find { it.itag == videoItag }
+                        format = formatList
+                            .filter {
+                                val url = it.url
+                                url != null && youTube.isManifestUrl(url)
+                            }.maxByOrNull { it.width ?: 0 } ?: formatList.find { it.itag == videoItag }
                     }
+                    Logger.w("Stream", "Selected hls ${response.streamingData?.hlsManifestUrl}")
                     Logger.w("Stream", "Super format: $superFormat")
                     Logger.w("Stream", "format: $format")
                     Logger.d("Stream", "expireInSeconds ${response.streamingData?.expiresInSeconds}")
                     Logger.w("Stream", "expired at ${now().plusSeconds(response.streamingData?.expiresInSeconds?.toLong() ?: 0L)}")
-                    runBlocking {
-                        insertNewFormat(
-                            NewFormatEntity(
-                                videoId = if (VIDEO_QUALITY.itags.contains(format?.itag)) "${MERGING_DATA_TYPE.VIDEO}$videoId" else videoId,
-                                itag = format?.itag ?: itag ?: 141,
-                                mimeType =
-                                    Regex("""([^;]+);\s*codecs=["']([^"']+)["']""")
-                                        .find(
-                                            format?.mimeType ?: "",
-                                        )?.groupValues
-                                        ?.getOrNull(1) ?: format?.mimeType ?: "",
-                                codecs =
-                                    Regex("""([^;]+);\s*codecs=["']([^"']+)["']""")
-                                        .find(
-                                            format?.mimeType ?: "",
-                                        )?.groupValues
-                                        ?.getOrNull(2) ?: format?.mimeType ?: "",
-                                bitrate = format?.bitrate,
-                                sampleRate = format?.audioSampleRate,
-                                contentLength = format?.contentLength,
-                                loudnessDb =
-                                    response.playerConfig
-                                        ?.audioConfig
-                                        ?.loudnessDb
-                                        ?.toFloat(),
-                                lengthSeconds = response.videoDetails?.lengthSeconds?.toInt(),
-                                playbackTrackingVideostatsPlaybackUrl =
-                                    response.playbackTracking?.videostatsPlaybackUrl?.baseUrl?.replace(
-                                        "https://s.youtube.com",
-                                        "https://music.youtube.com",
-                                    ),
-                                playbackTrackingAtrUrl =
-                                    response.playbackTracking?.atrUrl?.baseUrl?.replace(
-                                        "https://s.youtube.com",
-                                        "https://music.youtube.com",
-                                    ),
-                                playbackTrackingVideostatsWatchtimeUrl =
-                                    response.playbackTracking?.videostatsWatchtimeUrl?.baseUrl?.replace(
-                                        "https://s.youtube.com",
-                                        "https://music.youtube.com",
-                                    ),
-                                cpn = data.first,
-                                expiredTime = now().plusSeconds(response.streamingData?.expiresInSeconds?.toLong() ?: 0L),
-                                audioUrl = superFormat?.url ?: audioFormat?.url,
-                                videoUrl = videoFormat?.url,
-                            ),
-                        )
-                    }
+                    insertNewFormat(
+                        NewFormatEntity(
+                            videoId = if (VIDEO_QUALITY.itags.contains(format?.itag)) "${MERGING_DATA_TYPE.VIDEO}$videoId" else videoId,
+                            itag = format?.itag ?: itag ?: 141,
+                            mimeType =
+                                Regex("""([^;]+);\s*codecs=["']([^"']+)["']""")
+                                    .find(
+                                        format?.mimeType ?: "",
+                                    )?.groupValues
+                                    ?.getOrNull(1) ?: format?.mimeType ?: "",
+                            codecs =
+                                Regex("""([^;]+);\s*codecs=["']([^"']+)["']""")
+                                    .find(
+                                        format?.mimeType ?: "",
+                                    )?.groupValues
+                                    ?.getOrNull(2) ?: format?.mimeType ?: "",
+                            bitrate = format?.bitrate,
+                            sampleRate = format?.audioSampleRate,
+                            contentLength = format?.contentLength,
+                            loudnessDb =
+                                response.playerConfig
+                                    ?.audioConfig
+                                    ?.loudnessDb
+                                    ?.toFloat(),
+                            lengthSeconds = response.videoDetails?.lengthSeconds?.toInt(),
+                            playbackTrackingVideostatsPlaybackUrl =
+                                response.playbackTracking?.videostatsPlaybackUrl?.baseUrl?.replace(
+                                    "https://s.youtube.com",
+                                    "https://music.youtube.com",
+                                ),
+                            playbackTrackingAtrUrl =
+                                response.playbackTracking?.atrUrl?.baseUrl?.replace(
+                                    "https://s.youtube.com",
+                                    "https://music.youtube.com",
+                                ),
+                            playbackTrackingVideostatsWatchtimeUrl =
+                                response.playbackTracking?.videostatsWatchtimeUrl?.baseUrl?.replace(
+                                    "https://s.youtube.com",
+                                    "https://music.youtube.com",
+                                ),
+                            cpn = data.first,
+                            expiredTime = now().plusSeconds(response.streamingData?.expiresInSeconds?.toLong() ?: 0L),
+                            audioUrl = if (muxed) response.streamingData?.hlsManifestUrl else (superFormat?.url ?: audioFormat?.url),
+                            videoUrl = if (muxed) response.streamingData?.hlsManifestUrl else videoFormat?.url,
+                        ),
+                    )
                     if (data.first != null) {
-                        emit(format?.url?.let { url ->
-                                if (youTube.isManifestUrl(url)) {
-                                    url.plus("&cpn=${data.first}")
-                                } else {
-                                    url.plus("&cpn=${data.first}&range=0-${format.contentLength ?: 10000000}")
+                        emit(
+                            if (muxed) {
+                                response.streamingData?.hlsManifestUrl
+                            } else {
+                                format?.url?.let { url ->
+                                    if (youTube.isManifestUrl(url)) {
+                                        url.plus("&cpn=${data.first}")
+                                    } else {
+                                        url.plus("&cpn=${data.first}&range=0-${format.contentLength ?: 10000000}")
+                                    }
                                 }
-                            }
+                            },
                         )
                     } else {
-                        emit(format?.url?.let { url ->
-                            if (youTube.isManifestUrl(url)) {
-                                url
+                        emit(
+                            if (muxed) {
+                                response.streamingData?.hlsManifestUrl
                             } else {
-                                url.plus("&range=0-${format.contentLength ?: 10000000}")
-                            }
-                        }
+                                format?.url?.let { url ->
+                                    if (youTube.isManifestUrl(url)) {
+                                        url
+                                    } else {
+                                        url.plus("&range=0-${format.contentLength ?: 10000000}")
+                                    }
+                                }
+                            },
                         )
-                        emit(format?.url?.plus("&range=0-${format.contentLength ?: 10000000}"))
                     }
                 }.onFailure {
                     it.printStackTrace()

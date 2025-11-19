@@ -383,6 +383,7 @@ class Ytmusic {
         poToken: String?,
         clientName: String,
         json: Json,
+        useCookie: Boolean,
     ): YtdlpVideoInfo? =
         withContext(Dispatchers.IO) {
             Logger.d(TAG, "ytdlpGetStreamUrl: videoId: $videoId, poToken: $poToken, clientName: $clientName")
@@ -391,7 +392,7 @@ class Ytmusic {
                     videoId = videoId,
                     poToken = null,
                     clientName = null,
-                    cookiePath = cookiePath?.toString(),
+                    cookiePath = if (useCookie) cookiePath?.toString() else null,
                 )
             val data = result?.let { json.decodeFromString<YtdlpVideoInfo>(it) }
             return@withContext data

@@ -33,15 +33,15 @@ import org.koin.dsl.module
 
 val repositoryModule =
     module {
-        single<AccountRepository> {
+        single<AccountRepository>(createdAtStart = true) {
             AccountRepositoryImpl(get(), get())
         }
 
-        single<AlbumRepository> {
+        single<AlbumRepository>(createdAtStart = true) {
             AlbumRepositoryImpl(get(), get())
         }
 
-        single<ArtistRepository> {
+        single<ArtistRepository>(createdAtStart = true) {
             ArtistRepositoryImpl(get(), get())
         }
 
@@ -51,39 +51,39 @@ val repositoryModule =
             }
         }
 
-        single<HomeRepository> {
+        single<HomeRepository>(createdAtStart = true) {
             HomeRepositoryImpl(get(), get())
         }
 
-        single<LocalPlaylistRepository> {
+        single<LocalPlaylistRepository>(createdAtStart = true) {
             LocalPlaylistRepositoryImpl(get(), get())
         }
 
-        single<LyricsCanvasRepository> {
+        single<LyricsCanvasRepository>(createdAtStart = true) {
             LyricsCanvasRepositoryImpl(get(), get(), get(), get(), get())
         }
 
-        single<PlaylistRepository> {
+        single<PlaylistRepository>(createdAtStart = true) {
             PlaylistRepositoryImpl(get(), get(), get())
         }
 
-        single<PodcastRepository> {
+        single<PodcastRepository>(createdAtStart = true) {
             PodcastRepositoryImpl(get(), get())
         }
 
-        single<SearchRepository> {
+        single<SearchRepository>(createdAtStart = true) {
             SearchRepositoryImpl(get(), get())
         }
 
-        single<SongRepository> {
+        single<SongRepository>(createdAtStart = true) {
             SongRepositoryImpl(get(), get(), get())
         }
 
-        single<StreamRepository> {
+        single<StreamRepository>(createdAtStart = true) {
             StreamRepositoryImpl(get(), get())
         }
 
-        single<UpdateRepository> {
+        single<UpdateRepository>(createdAtStart = true) {
             UpdateRepositoryImpl(get())
         }
     }

@@ -39,6 +39,8 @@ data class PipedResponse(
     val views: Int?,
     @SerialName("visibility")
     val visibility: String?,
+    val dash: String?,
+    val hls: String?,
 ) {
     @Serializable
     data class AudioStream(

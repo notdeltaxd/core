@@ -40,6 +40,7 @@ data class PlayerResponse(
 
     @Serializable
     data class StreamingData(
+        val hlsManifestUrl: String?,
         val formats: List<Format>?,
         val adaptiveFormats: List<Format>,
         val expiresInSeconds: Int,
