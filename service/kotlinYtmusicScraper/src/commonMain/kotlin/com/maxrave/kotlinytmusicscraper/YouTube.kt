@@ -1490,7 +1490,7 @@ class YouTube {
                         }
                     }
             }
-            if (noLogIn) {
+            if (!noLogIn) {
                 for (client in listClients) {
                     val tempRes =
                         ytMusic
