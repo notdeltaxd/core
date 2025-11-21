@@ -75,8 +75,9 @@ internal class SimpleMediaSessionCallback(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
     ): MediaSession.ConnectionResult {
+        Logger.w(TAG, "onConnect: ${controller.packageName}")
         val sessionCommands =
-            MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
+            MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
                 .buildUpon()
                 // Add custom commands
                 .add(SessionCommand(MEDIA_CUSTOM_COMMAND.LIKE, Bundle()))
@@ -84,7 +85,8 @@ internal class SimpleMediaSessionCallback(
                 .add(SessionCommand(MEDIA_CUSTOM_COMMAND.RADIO, Bundle()))
                 .add(SessionCommand(MEDIA_CUSTOM_COMMAND.SHUFFLE, Bundle()))
                 .build()
-        return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+        return MediaSession.ConnectionResult
+            .AcceptedResultBuilder(session)
             .setAvailableSessionCommands(sessionCommands)
             .build()
     }
@@ -274,14 +276,16 @@ internal class SimpleMediaSessionCallback(
                         if (!temp?.first.isNullOrEmpty()) {
                             var continueParam = temp.first
                             while (continueParam != null) {
-                                homeRepository.getHomeDataContinue(
-                                    continueParam,
-                                    viewString = context.getString(R.string.view_count),
-                                    songString = context.getString(R.string.song),
-                                ).lastOrNull().let {
-                                    listHomeItem.addAll(it?.data?.second ?: emptyList())
-                                    continueParam = it?.data?.first
-                                }
+                                homeRepository
+                                    .getHomeDataContinue(
+                                        continueParam,
+                                        viewString = context.getString(R.string.view_count),
+                                        songString = context.getString(R.string.song),
+                                    ).lastOrNull()
+                                    .let {
+                                        listHomeItem.addAll(it?.data?.second ?: emptyList())
+                                        continueParam = it?.data?.first
+                                    }
                             }
                         }
                         listHomeItem.map {

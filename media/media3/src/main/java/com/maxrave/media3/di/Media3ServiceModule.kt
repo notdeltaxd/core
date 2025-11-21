@@ -76,6 +76,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import org.koin.android.ext.koin.androidApplication
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.loadKoinModules
 import org.koin.core.qualifier.named
@@ -195,7 +196,7 @@ private val mediaServiceModule =
         // MediaSession Callback for main player
         single<MediaLibrarySession.Callback>(createdAtStart = true) {
             SimpleMediaSessionCallback(
-                androidContext(),
+                androidApplication(),
                 get<CoroutineScope>(named(SERVICE_SCOPE)),
                 get<MediaPlayerHandler>(),
                 get<SearchRepository>(),

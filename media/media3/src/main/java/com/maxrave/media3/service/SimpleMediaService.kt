@@ -114,7 +114,7 @@ internal class SimpleMediaService :
         simpleMediaServiceHandler.onUpdateNotification = { list ->
             val commandButtonList = list.map { it.toCommandButton(this) }
             mediaSession?.setMediaButtonPreferences(
-                commandButtonList
+                commandButtonList,
             )
         }
 
@@ -167,6 +167,13 @@ internal class SimpleMediaService :
             playerNotificationManager.setPlayer(player)
             playerNotificationManager.setSmallIcon(R.drawable.mono)
             mediaSession?.platformToken?.let { playerNotificationManager.setMediaSessionToken(it) }
+        }
+
+        simpleMediaServiceHandler.onUpdateNotification = { list ->
+            val commandButtonList = list.map { it.toCommandButton(this) }
+            mediaSession?.setMediaButtonPreferences(
+                commandButtonList,
+            )
         }
     }
 
