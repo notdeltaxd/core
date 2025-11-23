@@ -104,12 +104,14 @@ internal class SimpleMediaService :
             },
         )
 
-        mediaSession =
-            provideMediaLibrarySession(
-                this,
-                player,
-                simpleMediaSessionCallback,
-            )
+        if (mediaSession == null) {
+            mediaSession =
+                provideMediaLibrarySession(
+                    this,
+                    player,
+                    simpleMediaSessionCallback,
+                )
+        }
 
         simpleMediaServiceHandler.onUpdateNotification = { list ->
             val commandButtonList = list.map { it.toCommandButton(this) }
