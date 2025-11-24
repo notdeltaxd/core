@@ -225,6 +225,9 @@ internal class SimpleMediaService :
     override fun onDestroy() {
         super.onDestroy()
         Logger.w("Service", "Simple Media Service Destroyed")
+        if (simpleMediaServiceHandler.shouldReleaseOnTaskRemoved()) {
+            release()
+        }
     }
 
     override fun onTrimMemory(level: Int) {
