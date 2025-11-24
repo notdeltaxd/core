@@ -13,12 +13,12 @@ plugins {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
     compilerOptions {
         freeCompilerArgs.add("-Xmulti-dollar-interpolation")
         freeCompilerArgs.add("-Xwhen-guards")
     }
-    jvmToolchain(17)
+    jvmToolchain(21)
     // Target declarations - add or remove as needed below. These define
     // which platforms this KMP module supports.
     // See: https://kotlinlang.org/docs/multiplatform-discover-project.html#targets
@@ -114,6 +114,7 @@ kotlin {
         jvmMain {
             dependencies {
                 implementation(projects.mediaJvm)
+//                implementation(libs.nowplaying)
             }
         }
     }

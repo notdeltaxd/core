@@ -96,6 +96,8 @@ class JvmMediaPlayerHandlerImpl(
     private val coroutineScope: CoroutineScope,
 ) : MediaPlayerHandler,
     MediaPlayerListener {
+//    private val nypc = NPYC(Platform.Linux("SimpMusic", "com.maxrave.simpmusic"))
+
     override val player: MediaPlayerInterface = getKoin().get()
     private var discordRPC: DiscordRPC? = null
     override var onUpdateNotification: (List<GenericCommandButton>) -> Unit = {}
@@ -242,6 +244,32 @@ class JvmMediaPlayerHandlerImpl(
         }
         player.volume = runBlocking { dataStoreManager.playerVolume.first() }
         mayBeRestoreQueue()
+//        nypc.setListener(object: NowPlayingListener {
+//            override fun onPlayPause() {
+//                coroutineScope.launch {
+//                    onPlayerEvent(PlayerEvent.PlayPause)
+//                }
+//            }
+//
+//            override fun onNext() {
+//                coroutineScope.launch {
+//                    onPlayerEvent(PlayerEvent.Next)
+//                }
+//            }
+//
+//            override fun onPrevious() {
+//                coroutineScope.launch {
+//                    onPlayerEvent(PlayerEvent.Previous)
+//                }
+//            }
+//
+//            override fun onStop() {
+//                coroutineScope.launch {
+//                    onPlayerEvent(PlayerEvent.Stop)
+//                }
+//            }
+//
+//        })
         coroutineScope.launch {
             val controlStateJob =
                 launch {
@@ -400,7 +428,15 @@ class JvmMediaPlayerHandlerImpl(
                             songEntity = songEntity ?: track?.toSongEntity() ?: mediaItem.toSongEntity(),
                         )
                     }
-                    updateDiscordRpc(songEntity ?: track?.toSongEntity() ?: mediaItem.toSongEntity())
+                    val song =
+                        songEntity ?: track?.toSongEntity() ?: mediaItem.toSongEntity()
+                    updateDiscordRpc(song)
+//                    nypc.setNowPlaying(
+//                        song.title,
+//                        song.artistName?.joinToString(", ") ?: "",
+//                        song.albumName ?: "",
+//                        song.thumbnails,
+//                    )
                     Logger.w(TAG, "getDataOfNowPlayingState: ${nowPlayingState.value}")
                 }
                 songEntityJob?.cancel()
@@ -558,6 +594,13 @@ class JvmMediaPlayerHandlerImpl(
                 isNextAvailable = player.hasNextMediaItem(),
                 isPreviousAvailable = player.hasPreviousMediaItem(),
             )
+//        coroutineScope.launch {
+//            nypc.setButtonEnabled(
+//                isPlaying = controlState.value.isPlaying,
+//                canGoNext = controlState.value.isNextAvailable,
+//                canGoPrevious = controlState.value.isPreviousAvailable,
+//            )
+//        }
     }
 
     private fun addMediaItemNotSet(
@@ -1994,6 +2037,7 @@ class JvmMediaPlayerHandlerImpl(
 
     override fun release() {
         Logger.w("ServiceHandler", "Starting release process")
+//        nypc.removeListener()
         try {
             if (discordRPC?.isRpcRunning() == true) {
                 discordRPC?.closeRPC()
