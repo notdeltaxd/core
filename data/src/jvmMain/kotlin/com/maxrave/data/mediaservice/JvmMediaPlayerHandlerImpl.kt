@@ -84,6 +84,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.koin.mp.KoinPlatform.getKoin
+import org.simpmusic.nowplayingcenter.NPYC
+import org.simpmusic.nowplayingcenter.domain.NowPlayingListener
+import org.simpmusic.nowplayingcenter.domain.Platform
 import kotlin.math.pow
 
 private val TAG = "JvmMediaPlayerHandler"
@@ -96,7 +99,20 @@ class JvmMediaPlayerHandlerImpl(
     private val coroutineScope: CoroutineScope,
 ) : MediaPlayerHandler,
     MediaPlayerListener {
-//    private val nypc = NPYC(Platform.Linux("SimpMusic", "com.maxrave.simpmusic"))
+    private val nypc = NPYC(getPlatform())
+
+    private fun getPlatform(): Platform {
+        val os = System.getProperty("os.name").lowercase()
+        return if (os.contains("win")) {
+            Platform.Windows
+        } else if (os.contains("mac")) {
+            Platform.MacOs
+        } else {
+            Platform.Linux(
+                "SimpMusic", "com.maxrave.simpmusic"
+            )
+        }
+    }
 
     override val player: MediaPlayerInterface = getKoin().get()
     private var discordRPC: DiscordRPC? = null
@@ -244,32 +260,32 @@ class JvmMediaPlayerHandlerImpl(
         }
         player.volume = runBlocking { dataStoreManager.playerVolume.first() }
         mayBeRestoreQueue()
-//        nypc.setListener(object: NowPlayingListener {
-//            override fun onPlayPause() {
-//                coroutineScope.launch {
-//                    onPlayerEvent(PlayerEvent.PlayPause)
-//                }
-//            }
-//
-//            override fun onNext() {
-//                coroutineScope.launch {
-//                    onPlayerEvent(PlayerEvent.Next)
-//                }
-//            }
-//
-//            override fun onPrevious() {
-//                coroutineScope.launch {
-//                    onPlayerEvent(PlayerEvent.Previous)
-//                }
-//            }
-//
-//            override fun onStop() {
-//                coroutineScope.launch {
-//                    onPlayerEvent(PlayerEvent.Stop)
-//                }
-//            }
-//
-//        })
+        nypc.setListener(object: NowPlayingListener {
+            override fun onPlayPause() {
+                coroutineScope.launch {
+                    onPlayerEvent(PlayerEvent.PlayPause)
+                }
+            }
+
+            override fun onNext() {
+                coroutineScope.launch {
+                    onPlayerEvent(PlayerEvent.Next)
+                }
+            }
+
+            override fun onPrevious() {
+                coroutineScope.launch {
+                    onPlayerEvent(PlayerEvent.Previous)
+                }
+            }
+
+            override fun onStop() {
+                coroutineScope.launch {
+                    onPlayerEvent(PlayerEvent.Stop)
+                }
+            }
+
+        })
         coroutineScope.launch {
             val controlStateJob =
                 launch {
@@ -431,12 +447,12 @@ class JvmMediaPlayerHandlerImpl(
                     val song =
                         songEntity ?: track?.toSongEntity() ?: mediaItem.toSongEntity()
                     updateDiscordRpc(song)
-//                    nypc.setNowPlaying(
-//                        song.title,
-//                        song.artistName?.joinToString(", ") ?: "",
-//                        song.albumName ?: "",
-//                        song.thumbnails,
-//                    )
+                    nypc.setNowPlaying(
+                        song.title,
+                        song.artistName?.joinToString(", ") ?: "",
+                        song.albumName ?: "",
+                        song.thumbnails,
+                    )
                     Logger.w(TAG, "getDataOfNowPlayingState: ${nowPlayingState.value}")
                 }
                 songEntityJob?.cancel()
@@ -594,13 +610,13 @@ class JvmMediaPlayerHandlerImpl(
                 isNextAvailable = player.hasNextMediaItem(),
                 isPreviousAvailable = player.hasPreviousMediaItem(),
             )
-//        coroutineScope.launch {
-//            nypc.setButtonEnabled(
-//                isPlaying = controlState.value.isPlaying,
-//                canGoNext = controlState.value.isNextAvailable,
-//                canGoPrevious = controlState.value.isPreviousAvailable,
-//            )
-//        }
+        coroutineScope.launch {
+            nypc.setButtonEnabled(
+                isPlaying = controlState.value.isPlaying,
+                canGoNext = controlState.value.isNextAvailable,
+                canGoPrevious = controlState.value.isPreviousAvailable,
+            )
+        }
     }
 
     private fun addMediaItemNotSet(
@@ -2037,7 +2053,7 @@ class JvmMediaPlayerHandlerImpl(
 
     override fun release() {
         Logger.w("ServiceHandler", "Starting release process")
-//        nypc.removeListener()
+        nypc.removeListener()
         try {
             if (discordRPC?.isRpcRunning() == true) {
                 discordRPC?.closeRPC()
