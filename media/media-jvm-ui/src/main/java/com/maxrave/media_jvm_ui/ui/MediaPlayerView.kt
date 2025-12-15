@@ -71,7 +71,8 @@ fun MediaPlayerViewWithUrl(
     DisposableEffect(url) {
         scope.launch(Dispatchers.Swing) {
             val gsv = GstVideoComponent()
-            gsv.background = (java.awt.Color(0, 0, 0, 0))
+            gsv.background = java.awt.Color.BLACK
+            gsv.alignmentX = java.awt.Component.CENTER_ALIGNMENT
             gsVideoComponent = gsv
             val playBin =
                 PlayBin("canvas").apply {
@@ -109,8 +110,8 @@ fun MediaPlayerViewWithUrl(
             SwingPanel(
                 factory = {
                     JPanel().apply {
-                        layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                        background = java.awt.Color(255, 255, 255, 0)
+                        layout = BoxLayout(this, BoxLayout.PAGE_AXIS)
+                        background = java.awt.Color.BLACK
                         add(gsVideoComponent)
                     }
                 },

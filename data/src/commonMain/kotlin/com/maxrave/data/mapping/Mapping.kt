@@ -31,6 +31,7 @@ import com.maxrave.spotify.model.response.spotify.CanvasResponse
 import com.maxrave.spotify.model.response.spotify.SpotifyLyricsResponse
 import org.simpmusic.lyrics.models.response.LyricsResponse
 import org.simpmusic.lyrics.models.response.TranslatedLyricsResponse
+import org.simpmusic.lyrics.parser.parseRichSyncLyrics
 import org.simpmusic.lyrics.parser.parseSyncedLyrics
 import org.simpmusic.lyrics.parser.parseUnsyncedLyrics
 import kotlin.jvm.JvmName
@@ -280,7 +281,10 @@ internal fun AlbumItem.toAlbumsResult(): AlbumsResult =
 // SimpMusic Lyrics Extension
 internal fun LyricsResponse.toLyrics(): Lyrics? =
     (
-        syncedLyrics?.let { if (it.isNotEmpty() && it.isNotBlank()) parseSyncedLyrics(it) else null }
+        richSyncLyrics?.takeIf { it.isNotEmpty() }?.let {
+            parseRichSyncLyrics(it)
+        }
+            ?: syncedLyrics?.let { if (it.isNotEmpty() && it.isNotBlank()) parseSyncedLyrics(it) else null }
             ?: (
                 if (plainLyric.isNotEmpty() && plainLyric.isNotBlank()) {
                     parseUnsyncedLyrics(plainLyric)
@@ -298,7 +302,7 @@ internal fun SearchSuggestions.toDomainSearchSuggestions(): com.maxrave.domain.d
         recommendedItems =
             this.recommendedItems.map {
                 when (it) {
-                    is SongItem ->
+                    is SongItem -> {
                         SongsResult(
                             album =
                                 Album(
@@ -324,7 +328,9 @@ internal fun SearchSuggestions.toDomainSearchSuggestions(): com.maxrave.domain.d
                             videoType = null,
                             year = "",
                         )
-                    is AlbumItem ->
+                    }
+
+                    is AlbumItem -> {
                         AlbumsResult(
                             artists =
                                 it.artists?.map {
@@ -350,7 +356,9 @@ internal fun SearchSuggestions.toDomainSearchSuggestions(): com.maxrave.domain.d
                             type = if (it.isSingle) "SINGLE" else "ALBUM",
                             year = it.year?.toString() ?: "",
                         )
-                    is ArtistItem ->
+                    }
+
+                    is ArtistItem -> {
                         ArtistsResult(
                             artist = it.title,
                             browseId = it.id,
@@ -367,7 +375,9 @@ internal fun SearchSuggestions.toDomainSearchSuggestions(): com.maxrave.domain.d
                                     ),
                                 ),
                         )
-                    is PlaylistItem ->
+                    }
+
+                    is PlaylistItem -> {
                         PlaylistsResult(
                             author = it.author?.name ?: "YouTube Music",
                             browseId = it.id,
@@ -384,7 +394,9 @@ internal fun SearchSuggestions.toDomainSearchSuggestions(): com.maxrave.domain.d
                                 ),
                             title = it.title,
                         )
-                    is VideoItem ->
+                    }
+
+                    is VideoItem -> {
                         VideosResult(
                             artists =
                                 it.artists.map { artist ->
@@ -404,6 +416,7 @@ internal fun SearchSuggestions.toDomainSearchSuggestions(): com.maxrave.domain.d
                             views = it.view,
                             year = "",
                         )
+                    }
                 }
             },
     )
