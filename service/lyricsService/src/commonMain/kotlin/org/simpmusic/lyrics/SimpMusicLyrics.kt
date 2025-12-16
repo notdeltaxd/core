@@ -38,7 +38,7 @@ class SimpMusicLyrics {
 
     private fun createClient() =
         HttpClient(getEngine()) {
-            expectSuccess = true
+            expectSuccess = false
             followRedirects = true
             install(HttpCache)
             install(HttpSend) {

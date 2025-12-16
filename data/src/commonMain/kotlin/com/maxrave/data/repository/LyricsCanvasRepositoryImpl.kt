@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.maxrave.data.repository
 
 import com.maxrave.data.db.LocalDataSource
@@ -8,6 +10,7 @@ import com.maxrave.domain.data.entities.TranslatedLyricsEntity
 import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.canvas.CanvasResult
 import com.maxrave.domain.data.model.metadata.Lyrics
+import com.maxrave.domain.extension.now
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.repository.LyricsCanvasRepository
 import com.maxrave.domain.utils.Resource
@@ -31,6 +34,8 @@ import org.simpmusic.lyrics.SimpMusicLyricsClient
 import org.simpmusic.lyrics.models.request.LyricsBody
 import org.simpmusic.lyrics.models.request.TranslatedLyricsBody
 import kotlin.math.abs
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 internal class LyricsCanvasRepositoryImpl(
     private val localDataSource: LocalDataSource,
@@ -108,14 +113,14 @@ internal class LyricsCanvasRepositoryImpl(
                     var spotifyClientToken = ""
                     Logger.w("Lyrics", "getSpotifyLyrics: ${dataStoreManager.spotifyPersonalTokenExpires.first()}")
                     Logger.w("Lyrics", "getSpotifyLyrics ${dataStoreManager.spotifyClientTokenExpires.first()}")
-                    Logger.w("Lyrics", "getSpotifyLyrics now: ${System.currentTimeMillis()}")
+                    Logger.w("Lyrics", "getSpotifyLyrics now: ${now()}")
                     if (dataStoreManager.spotifyPersonalToken
                             .first()
                             .isNotEmpty() &&
                         dataStoreManager.spotifyClientToken.first().isNotEmpty() &&
-                        dataStoreManager.spotifyPersonalTokenExpires.first() > System.currentTimeMillis() &&
+                        dataStoreManager.spotifyPersonalTokenExpires.first() > Clock.System.now().toEpochMilliseconds() &&
                         dataStoreManager.spotifyPersonalTokenExpires.first() != 0L &&
-                        dataStoreManager.spotifyClientTokenExpires.first() > System.currentTimeMillis() &&
+                        dataStoreManager.spotifyClientTokenExpires.first() > Clock.System.now().toEpochMilliseconds() &&
                         dataStoreManager.spotifyClientTokenExpires.first() != 0L
                     ) {
                         spotifyPersonalToken = dataStoreManager.spotifyPersonalToken.first()
@@ -128,7 +133,7 @@ internal class LyricsCanvasRepositoryImpl(
                             .onSuccess {
                                 Logger.d("Canvas", "Request clientToken: ${it.grantedToken.token}")
                                 dataStoreManager.setSpotifyClientTokenExpires(
-                                    (it.grantedToken.expiresAfterSeconds * 1000L) + System.currentTimeMillis(),
+                                    (it.grantedToken.expiresAfterSeconds * 1000L) + Clock.System.now().toEpochMilliseconds(),
                                 )
                                 dataStoreManager.setSpotifyClientToken(it.grantedToken.token)
                                 spotifyClientToken = it.grantedToken.token
@@ -256,9 +261,9 @@ internal class LyricsCanvasRepositoryImpl(
                 if (dataStoreManager.spotifyPersonalToken
                         .first()
                         .isNotEmpty() &&
-                    dataStoreManager.spotifyPersonalTokenExpires.first() > System.currentTimeMillis() &&
+                    dataStoreManager.spotifyPersonalTokenExpires.first() > Clock.System.now().toEpochMilliseconds() &&
                     dataStoreManager.spotifyPersonalTokenExpires.first() != 0L &&
-                    dataStoreManager.spotifyClientTokenExpires.first() > System.currentTimeMillis() &&
+                    dataStoreManager.spotifyClientTokenExpires.first() > Clock.System.now().toEpochMilliseconds() &&
                     dataStoreManager.spotifyClientTokenExpires.first() != 0L
                 ) {
                     spotifyPersonalToken = dataStoreManager.spotifyPersonalToken.first()
@@ -272,7 +277,7 @@ internal class LyricsCanvasRepositoryImpl(
                             .onSuccess {
                                 Logger.d("Canvas", "Request clientToken: ${it.grantedToken.token}")
                                 dataStoreManager.setSpotifyClientTokenExpires(
-                                    (it.grantedToken.expiresAfterSeconds * 1000L) + System.currentTimeMillis(),
+                                    (it.grantedToken.expiresAfterSeconds * 1000L) + Clock.System.now().toEpochMilliseconds(),
                                 )
                                 dataStoreManager.setSpotifyClientToken(it.grantedToken.token)
                                 spotifyClientToken = it.grantedToken.token

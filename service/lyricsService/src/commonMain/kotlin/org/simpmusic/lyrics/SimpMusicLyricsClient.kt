@@ -26,6 +26,8 @@ class SimpMusicLyricsClient {
     private val isInsertingLyrics: Boolean
         get() = insertingLyrics.second
 
+    private var tooManyRequest: Boolean = false
+
     private var insertingTranslatedLyrics: Pair<String?, Boolean> = (null to false)
     private val isInsertingTranslatedLyrics: Boolean
         get() = insertingTranslatedLyrics.second
@@ -48,6 +50,9 @@ class SimpMusicLyricsClient {
 
     suspend fun insertLyrics(lyricsBody: LyricsBody): Result<LyricsResponse> =
         runCatching {
+            if (tooManyRequest) {
+                throw IllegalStateException("Too many requests, please wait before trying again.")
+            }
             if (isInsertingLyrics && insertingLyrics.first == lyricsBody.videoId) {
                 throw IllegalStateException("Already inserting lyrics, please wait until the current operation is complete.")
             }
@@ -132,6 +137,12 @@ class SimpMusicLyricsClient {
     }
 
     private suspend inline fun <reified T> HttpResponse.bodyOrThrow(): T {
+        if (this.status.value == 429) {
+            tooManyRequest = true
+            Logger.e(TAG, "Too many requests: ${this.status.value}")
+        } else {
+            tooManyRequest = false
+        }
         try {
             val data = body<BaseResponse<T>>()
             if (data.error != null) {

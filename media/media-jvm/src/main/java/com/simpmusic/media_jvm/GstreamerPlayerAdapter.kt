@@ -301,6 +301,7 @@ class GstreamerPlayerAdapter(
             // Load the new track
             localCurrentMediaItemIndex = mediaItemIndex
             currentPlayer?.pause()
+            currentPlayer?.release()
             currentPlayer = null
             loadAndPlayTrackInternal(mediaItemIndex, positionMs, shouldPlay)
         }
@@ -1191,8 +1192,7 @@ class GstreamerPlayerAdapter(
      */
     private fun cleanupPlayerInternal(player: GstreamerPlayer) {
         try {
-            player.setState(State.NULL)
-            player.stop()
+            player.release()
         } catch (e: Exception) {
             Logger.w(TAG, "Error cleaning up player: ${e.message}")
         }
@@ -1672,5 +1672,15 @@ data class GstreamerPlayer(
     fun setVolume(volume: Double) {
         // Set volume on the playerBin (which is the audio PlayBin in dual-stream case)
         (playerBin as? PlayBin)?.volume = volume
+    }
+
+    fun release() {
+        try {
+            stop()
+            playerBin.state = State.NULL
+            playerBin.dispose()
+        } catch (e: Exception) {
+            Logger.w(TAG, "Error releasing player: ${e.message}")
+        }
     }
 }
