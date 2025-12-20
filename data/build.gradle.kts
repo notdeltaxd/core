@@ -44,7 +44,7 @@ kotlin {
     listOf(
         iosX64(),
         iosArm64(),
-        iosSimulatorArm64()
+        iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = xcfName
@@ -115,6 +115,8 @@ kotlin {
             dependencies {
                 implementation(projects.mediaJvm)
                 implementation(libs.nowplaying)
+                implementation(libs.jna)
+                implementation(libs.jna.platform)
             }
         }
     }

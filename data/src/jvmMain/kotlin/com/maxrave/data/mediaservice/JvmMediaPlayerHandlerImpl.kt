@@ -15,6 +15,9 @@ import com.maxrave.common.LOCAL_PLAYLIST_ID_SAVED_QUEUE
 import com.maxrave.common.MERGING_DATA_TYPE
 import com.maxrave.common.TITLE
 import com.maxrave.data.db.Converters
+import com.maxrave.data.mediaservice.mac.MacOSMediaIntegration
+import com.maxrave.data.mediaservice.mac.MacOSRemoteCommandListener
+import com.maxrave.data.mediaservice.mac.NowPlayingInfo
 import com.maxrave.domain.data.entities.NewFormatEntity
 import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.model.browse.album.Track
@@ -101,6 +104,15 @@ class JvmMediaPlayerHandlerImpl(
     MediaPlayerListener {
     private val nypc = NPYC(getPlatform())
 
+    // macOS Media Integration (Now Playing Center + Remote Command Center)
+    private val macOSMediaIntegration: MacOSMediaIntegration? by lazy {
+        if (MacOSMediaIntegration.isSupported()) {
+            MacOSMediaIntegration.getInstance()
+        } else {
+            null
+        }
+    }
+
     private fun getPlatform(): Platform {
         val os = System.getProperty("os.name").lowercase()
         return if (os.contains("win")) {
@@ -109,7 +121,8 @@ class JvmMediaPlayerHandlerImpl(
             Platform.MacOs
         } else {
             Platform.Linux(
-                "SimpMusic", "com.maxrave.simpmusic"
+                "SimpMusic",
+                "com.maxrave.simpmusic",
             )
         }
     }
@@ -141,9 +154,18 @@ class JvmMediaPlayerHandlerImpl(
                 isShuffle = player.shuffleModeEnabled,
                 repeatState =
                     when (player.repeatMode) {
-                        PlayerConstants.REPEAT_MODE_ONE -> RepeatState.One
-                        PlayerConstants.REPEAT_MODE_ALL -> RepeatState.All
-                        PlayerConstants.REPEAT_MODE_OFF -> RepeatState.None
+                        PlayerConstants.REPEAT_MODE_ONE -> {
+                            RepeatState.One
+                        }
+
+                        PlayerConstants.REPEAT_MODE_ALL -> {
+                            RepeatState.All
+                        }
+
+                        PlayerConstants.REPEAT_MODE_OFF -> {
+                            RepeatState.None
+                        }
+
                         else -> {
                             RepeatState.None
                         }
@@ -250,9 +272,18 @@ class JvmMediaPlayerHandlerImpl(
             player.shuffleModeEnabled = shuffleKey == TRUE
             player.repeatMode =
                 when (repeatKey) {
-                    DataStoreManager.REPEAT_ONE -> PlayerConstants.REPEAT_MODE_ONE
-                    DataStoreManager.REPEAT_ALL -> PlayerConstants.REPEAT_MODE_ALL
-                    DataStoreManager.REPEAT_MODE_OFF -> PlayerConstants.REPEAT_MODE_OFF
+                    DataStoreManager.REPEAT_ONE -> {
+                        PlayerConstants.REPEAT_MODE_ONE
+                    }
+
+                    DataStoreManager.REPEAT_ALL -> {
+                        PlayerConstants.REPEAT_MODE_ALL
+                    }
+
+                    DataStoreManager.REPEAT_MODE_OFF -> {
+                        PlayerConstants.REPEAT_MODE_OFF
+                    }
+
                     else -> {
                         PlayerConstants.REPEAT_MODE_OFF
                     }
@@ -260,32 +291,35 @@ class JvmMediaPlayerHandlerImpl(
         }
         player.volume = runBlocking { dataStoreManager.playerVolume.first() }
         mayBeRestoreQueue()
-        nypc.setListener(object: NowPlayingListener {
-            override fun onPlayPause() {
-                coroutineScope.launch {
-                    onPlayerEvent(PlayerEvent.PlayPause)
+        nypc.setListener(
+            object : NowPlayingListener {
+                override fun onPlayPause() {
+                    coroutineScope.launch {
+                        onPlayerEvent(PlayerEvent.PlayPause)
+                    }
                 }
-            }
 
-            override fun onNext() {
-                coroutineScope.launch {
-                    onPlayerEvent(PlayerEvent.Next)
+                override fun onNext() {
+                    coroutineScope.launch {
+                        onPlayerEvent(PlayerEvent.Next)
+                    }
                 }
-            }
 
-            override fun onPrevious() {
-                coroutineScope.launch {
-                    onPlayerEvent(PlayerEvent.Previous)
+                override fun onPrevious() {
+                    coroutineScope.launch {
+                        onPlayerEvent(PlayerEvent.Previous)
+                    }
                 }
-            }
 
-            override fun onStop() {
-                coroutineScope.launch {
-                    onPlayerEvent(PlayerEvent.Stop)
+                override fun onStop() {
+                    coroutineScope.launch {
+                        onPlayerEvent(PlayerEvent.Stop)
+                    }
                 }
-            }
-
-        })
+            },
+        )
+        // Initialize macOS media integration
+        initializeMacOSMediaIntegration()
         coroutineScope.launch {
             val controlStateJob =
                 launch {
@@ -453,6 +487,7 @@ class JvmMediaPlayerHandlerImpl(
                         song.albumName ?: "",
                         song.thumbnails,
                     )
+                    updateMacOSNowPlayingInfo(song)
                     Logger.w(TAG, "getDataOfNowPlayingState: ${nowPlayingState.value}")
                 }
                 songEntityJob?.cancel()
@@ -617,6 +652,7 @@ class JvmMediaPlayerHandlerImpl(
                 canGoPrevious = controlState.value.isPreviousAvailable,
             )
         }
+        updateMacOSCommandsEnabled()
     }
 
     private fun addMediaItemNotSet(
@@ -688,6 +724,7 @@ class JvmMediaPlayerHandlerImpl(
                 while (true) {
                     delay(100)
                     _simpleMediaState.value = SimpleMediaState.Progress(player.currentPosition)
+                    updateMacOSElapsedTime()
                 }
             }
     }
@@ -721,8 +758,14 @@ class JvmMediaPlayerHandlerImpl(
                 player.volume = playerEvent.newVolume
             }
 
-            PlayerEvent.Backward -> player.seekBack()
-            PlayerEvent.Forward -> player.seekForward()
+            PlayerEvent.Backward -> {
+                player.seekBack()
+            }
+
+            PlayerEvent.Forward -> {
+                player.seekForward()
+            }
+
             PlayerEvent.PlayPause -> {
                 if (player.isPlaying) {
                     stopProgressUpdate()
@@ -749,7 +792,10 @@ class JvmMediaPlayerHandlerImpl(
                 _nowPlayingState.value = NowPlayingTrackState.initial()
             }
 
-            is PlayerEvent.UpdateProgress -> player.seekTo((player.duration * playerEvent.newProgress / 100).toLong())
+            is PlayerEvent.UpdateProgress -> {
+                player.seekTo((player.duration * playerEvent.newProgress / 100).toLong())
+            }
+
             PlayerEvent.Shuffle -> {
                 if (player.shuffleModeEnabled) {
                     player.shuffleModeEnabled = false
@@ -943,13 +989,14 @@ class JvmMediaPlayerHandlerImpl(
 
     override fun currentSongIndex(): Int = player.currentMediaItemIndex
 
-    override fun currentOrderIndex(): Int = if (player.shuffleModeEnabled) {
-        queueData.value.data.listTracks.indexOfLast {
-            it.videoId == player.currentMediaItem?.mediaId
+    override fun currentOrderIndex(): Int =
+        if (player.shuffleModeEnabled) {
+            queueData.value.data.listTracks.indexOfLast {
+                it.videoId == player.currentMediaItem?.mediaId
+            }
+        } else {
+            currentSongIndex()
         }
-    } else {
-        currentSongIndex()
-    }
 
     override suspend fun swap(
         from: Int,
@@ -2054,6 +2101,9 @@ class JvmMediaPlayerHandlerImpl(
     override fun release() {
         Logger.w("ServiceHandler", "Starting release process")
         nypc.removeListener()
+        // Release macOS media integration
+        clearMacOSNowPlayingInfo()
+        macOSMediaIntegration?.release()
         try {
             if (discordRPC?.isRpcRunning() == true) {
                 discordRPC?.closeRPC()
@@ -2182,6 +2232,7 @@ class JvmMediaPlayerHandlerImpl(
             }
         }
         updateNextPreviousTrackAvailability()
+        updateMacOSPlaybackState(isPlaying)
     }
 
     override fun onMediaItemTransition(
@@ -2279,7 +2330,10 @@ class JvmMediaPlayerHandlerImpl(
         updateNextPreviousTrackAvailability()
     }
 
-    override fun onTimelineChanged(list: List<GenericMediaItem>, reason: String) {
+    override fun onTimelineChanged(
+        list: List<GenericMediaItem>,
+        reason: String,
+    ) {
         super.onTimelineChanged(list, reason)
         Logger.d(TAG, "onTimelineChanged: $reason, items: ${list.size}")
         reorderShuffledQueue(list)
@@ -2288,17 +2342,20 @@ class JvmMediaPlayerHandlerImpl(
     override fun onRepeatModeChanged(repeatMode: Int) {
         updateNextPreviousTrackAvailability()
         when (repeatMode) {
-            PlayerConstants.REPEAT_MODE_OFF ->
+            PlayerConstants.REPEAT_MODE_OFF -> {
                 _controlState.value =
                     _controlState.value.copy(repeatState = RepeatState.None)
+            }
 
-            PlayerConstants.REPEAT_MODE_ONE ->
+            PlayerConstants.REPEAT_MODE_ONE -> {
                 _controlState.value =
                     _controlState.value.copy(repeatState = RepeatState.One)
+            }
 
-            PlayerConstants.REPEAT_MODE_ALL ->
+            PlayerConstants.REPEAT_MODE_ALL -> {
                 _controlState.value =
                     _controlState.value.copy(repeatState = RepeatState.All)
+            }
         }
     }
 
@@ -2331,5 +2388,152 @@ class JvmMediaPlayerHandlerImpl(
                     )
                 }
             }
+    }
+
+    /**
+     * Initialize macOS Now Playing Center and Remote Command Center
+     */
+    private fun initializeMacOSMediaIntegration() {
+        macOSMediaIntegration?.let { integration ->
+            if (integration.initialize()) {
+                integration.setRemoteCommandListener(
+                    object : MacOSRemoteCommandListener {
+                        override fun onPlay() {
+                            Logger.d(TAG, "macOS Remote: Play")
+                            coroutineScope.launch {
+                                onPlayerEvent(PlayerEvent.PlayPause)
+                            }
+                        }
+
+                        override fun onPause() {
+                            Logger.d(TAG, "macOS Remote: Pause")
+                            coroutineScope.launch {
+                                onPlayerEvent(PlayerEvent.PlayPause)
+                            }
+                        }
+
+                        override fun onTogglePlayPause() {
+                            Logger.d(TAG, "macOS Remote: Toggle Play/Pause")
+                            coroutineScope.launch {
+                                onPlayerEvent(PlayerEvent.PlayPause)
+                            }
+                        }
+
+                        override fun onStop() {
+                            Logger.d(TAG, "macOS Remote: Stop")
+                            coroutineScope.launch {
+                                onPlayerEvent(PlayerEvent.Stop)
+                            }
+                        }
+
+                        override fun onNextTrack() {
+                            Logger.d(TAG, "macOS Remote: Next Track")
+                            coroutineScope.launch {
+                                onPlayerEvent(PlayerEvent.Next)
+                            }
+                        }
+
+                        override fun onPreviousTrack() {
+                            Logger.d(TAG, "macOS Remote: Previous Track")
+                            coroutineScope.launch {
+                                onPlayerEvent(PlayerEvent.Previous)
+                            }
+                        }
+
+                        override fun onSeekForward() {
+                            Logger.d(TAG, "macOS Remote: Seek Forward")
+                            coroutineScope.launch {
+                                onPlayerEvent(PlayerEvent.Forward)
+                            }
+                        }
+
+                        override fun onSeekBackward() {
+                            Logger.d(TAG, "macOS Remote: Seek Backward")
+                            coroutineScope.launch {
+                                onPlayerEvent(PlayerEvent.Backward)
+                            }
+                        }
+
+                        override fun onChangePlaybackPosition(positionSeconds: Double) {
+                            Logger.d(TAG, "macOS Remote: Seek to ${positionSeconds}s")
+                            coroutineScope.launch {
+                                onPlayerEvent(
+                                    PlayerEvent.UpdateProgress(
+                                        ((positionSeconds * 1000).toLong() / getPlayerDuration()).toFloat(),
+                                    ),
+                                )
+                            }
+                        }
+                    },
+                )
+                Logger.d(TAG, "macOS media integration initialized successfully")
+            }
+        }
+    }
+    // ========== macOS Now Playing Integration ==========
+
+    /**
+     * Update macOS Now Playing info with current media item
+     */
+    private fun updateMacOSNowPlayingInfo(songEntity: SongEntity) {
+        macOSMediaIntegration?.updateNowPlayingInfo(
+            NowPlayingInfo(
+                title = songEntity.title,
+                artist = songEntity.artistName?.connectArtists() ?: "Unknown Artist",
+                album = songEntity.albumName ?: "",
+                durationSeconds = getPlayerDuration() / 1000.0,
+                elapsedTimeSeconds = player.contentPosition / 1000.0,
+                playbackRate = 1.0,
+                artworkUrl = songEntity.thumbnails,
+                queueIndex = player.currentMediaItemIndex,
+                queueCount = queueData.value.data.listTracks.size,
+            ),
+        )
+
+        // Update remote command buttons enabled state
+        updateMacOSCommandsEnabled()
+
+        // Load artwork asynchronously
+        val artworkUrl = songEntity.thumbnails
+        if (!artworkUrl.isNullOrEmpty()) {
+            coroutineScope.launch {
+                macOSMediaIntegration?.loadAndSetArtwork(artworkUrl)
+            }
+        }
+    }
+
+    /**
+     * Update macOS Now Playing playback state
+     */
+    private fun updateMacOSPlaybackState(isPlaying: Boolean) {
+        macOSMediaIntegration?.updatePlaybackState(isPlaying)
+    }
+
+    /**
+     * Update macOS remote command buttons enabled state
+     */
+    private fun updateMacOSCommandsEnabled() {
+        val hasNext = _controlState.value.isNextAvailable
+        val hasPrevious = _controlState.value.isPreviousAvailable
+        val canSeek = getPlayerDuration() > 0
+        macOSMediaIntegration?.updateCommandsEnabled(
+            hasNext = hasNext,
+            hasPrevious = hasPrevious,
+            canSeek = canSeek,
+        )
+    }
+
+    /**
+     * Update macOS Now Playing elapsed time (called periodically)
+     */
+    private fun updateMacOSElapsedTime() {
+        macOSMediaIntegration?.updateElapsedTime(player.currentPosition / 1000.0, 1.0)
+    }
+
+    /**
+     * Clear macOS Now Playing info
+     */
+    private fun clearMacOSNowPlayingInfo() {
+        macOSMediaIntegration?.clearNowPlayingInfo()
     }
 }
