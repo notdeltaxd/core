@@ -824,17 +824,20 @@ class MacOSMediaIntegration private constructor() {
                 fun invoke(
                     block: Pointer?,
                     event: Pointer?,
-                ): Int =
-                    try {
+                ): Int {
+                    Logger.d(TAG, "Block callback invoked! block=$block, event=$event")
+                    return try {
                         handler(event)
                     } catch (e: Exception) {
                         Logger.e(TAG, "Command handler error: ${e.message}", e)
                         MPRemoteCommandHandlerStatus.CommandFailed
                     }
+                }
             }
 
         // Keep reference to prevent GC
         blockCallbacks.add(callback)
+        Logger.d(TAG, "Created callback: $callback")
 
         // Get the callback function pointer using CallbackReference
         val callbackPointer = CallbackReference.getFunctionPointer(callback)
@@ -956,26 +959,33 @@ class MacOSMediaIntegration private constructor() {
             // Create handler that extracts position from event
             val handlerBlock =
                 createCommandHandler { event ->
+                    Logger.d(TAG, "changePlaybackPositionCommand handler invoked! event=$event")
                     if (event != null) {
                         try {
                             // Get positionTime from MPChangePlaybackPositionCommandEvent
+                            // Use ObjCRuntimeDouble for double return value (works on both ARM64 and x86_64)
                             val positionTime =
-                                ObjCRuntime.INSTANCE.objc_msgSend_fpret(
+                                ObjCRuntimeDouble.INSTANCE.objc_msgSend(
                                     event,
                                     ObjC.sel("positionTime"),
                                 )
+                            Logger.d(TAG, "Seek position from system: $positionTime seconds")
                             remoteCommandListener?.onChangePlaybackPosition(positionTime)
                         } catch (e: Exception) {
                             Logger.e(TAG, "Failed to get position time: ${e.message}", e)
                         }
+                    } else {
+                        Logger.w(TAG, "changePlaybackPositionCommand: event is null!")
                     }
                     MPRemoteCommandHandlerStatus.Success
                 }
 
             if (handlerBlock != null) {
                 ObjC.msg(command, "addTargetWithHandler:", handlerBlock)
+                Logger.d(TAG, "Setup command: changePlaybackPositionCommand with handler block: $handlerBlock")
+            } else {
+                Logger.e(TAG, "Failed to create handler block for changePlaybackPositionCommand")
             }
-            Logger.d(TAG, "Setup command: changePlaybackPositionCommand")
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to setup changePlaybackPositionCommand: ${e.message}", e)
         }

@@ -122,6 +122,8 @@ interface ObjCRuntime : Library {
 
     /**
      * Send a message that returns a double
+     * Note: objc_msgSend_fpret only exists on x86_64, not on ARM64
+     * On ARM64, use ObjCRuntimeDouble.INSTANCE.objc_msgSend instead
      */
     fun objc_msgSend_fpret(
         receiver: Pointer?,
@@ -132,6 +134,29 @@ interface ObjCRuntime : Library {
      * Allocate a block for callback
      */
     fun class_getName(cls: Pointer?): String?
+}
+
+/**
+ * Separate interface for objc_msgSend that returns Double
+ * This is needed because JNA needs different function signatures for different return types
+ * Works on both ARM64 and x86_64
+ */
+interface ObjCRuntimeDouble : Library {
+    companion object {
+        val INSTANCE: ObjCRuntimeDouble by lazy {
+            Native.load("objc", ObjCRuntimeDouble::class.java)
+        }
+    }
+
+    /**
+     * Send a message that returns a double value
+     * On ARM64, this uses the regular objc_msgSend
+     * JNA will handle the return type correctly
+     */
+    fun objc_msgSend(
+        receiver: Pointer?,
+        selector: Pointer?,
+    ): Double
 }
 
 /**

@@ -2457,11 +2457,7 @@ class JvmMediaPlayerHandlerImpl(
                         override fun onChangePlaybackPosition(positionSeconds: Double) {
                             Logger.d(TAG, "macOS Remote: Seek to ${positionSeconds}s")
                             coroutineScope.launch {
-                                onPlayerEvent(
-                                    PlayerEvent.UpdateProgress(
-                                        ((positionSeconds * 1000).toLong() / getPlayerDuration()).toFloat(),
-                                    ),
-                                )
+                                player.seekTo((positionSeconds * 1000).toLong())
                             }
                         }
                     },
