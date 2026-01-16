@@ -32,6 +32,7 @@ import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.logger.Logger
 import com.maxrave.media3.R
 import com.maxrave.media3.extension.toCommandButton
+import com.maxrave.media3.player.TransitionController
 import com.maxrave.media3.utils.CoilBitmapLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -59,6 +60,7 @@ internal class SimpleMediaService :
 
     private val simpleMediaServiceHandler: MediaPlayerHandler by inject<MediaPlayerHandler>()
     private val dataStoreManager: DataStoreManager by inject<DataStoreManager>()
+    private val transitionController: TransitionController by inject<TransitionController>()
 
     private val binder = MusicBinder()
 
@@ -177,6 +179,9 @@ internal class SimpleMediaService :
                 commandButtonList,
             )
         }
+
+        // Initialize crossfade transition controller
+        transitionController.initialize()
     }
 
     @UnstableApi
@@ -211,6 +216,8 @@ internal class SimpleMediaService :
                     this.player.release()
                     this.release()
                 }
+                // Release crossfade controller
+                transitionController.release()
                 // Release handler first (contains coroutines and jobs)
                 simpleMediaServiceHandler.release()
                 mediaSession = null

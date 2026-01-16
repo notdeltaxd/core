@@ -86,4 +86,8 @@ val repositoryModule =
         single<UpdateRepository>(createdAtStart = true) {
             UpdateRepositoryImpl(get())
         }
+
+        // Last.fm integration
+        single { com.maxrave.data.lastfm.LastFmApi(get()) }
+        single { com.maxrave.data.lastfm.LastFmManager(get(), get()) }
     }

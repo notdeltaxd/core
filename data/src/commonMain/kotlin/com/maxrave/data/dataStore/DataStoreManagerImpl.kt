@@ -1230,6 +1230,118 @@ internal class DataStoreManagerImpl(
         }
     }
 
+    // Last.fm settings
+    override val lastFmApiKey: Flow<String> = settingsDataStore.data.map { preferences ->
+        preferences[LASTFM_API_KEY] ?: ""
+    }
+
+    override val lastFmApiSecret: Flow<String> = settingsDataStore.data.map { preferences ->
+        preferences[LASTFM_API_SECRET] ?: ""
+    }
+
+    override val lastFmSessionKey: Flow<String> = settingsDataStore.data.map { preferences ->
+        preferences[LASTFM_SESSION_KEY] ?: ""
+    }
+
+    override val lastFmUsername: Flow<String> = settingsDataStore.data.map { preferences ->
+        preferences[LASTFM_USERNAME] ?: ""
+    }
+
+    override val lastFmScrobbleEnabled: Flow<String> = settingsDataStore.data.map { preferences ->
+        preferences[LASTFM_SCROBBLE_ENABLED] ?: FALSE
+    }
+
+    override val lastFmNowPlayingEnabled: Flow<String> = settingsDataStore.data.map { preferences ->
+        preferences[LASTFM_NOW_PLAYING_ENABLED] ?: FALSE
+    }
+
+    override val lastFmPendingScrobbles: Flow<String> = settingsDataStore.data.map { preferences ->
+        preferences[LASTFM_PENDING_SCROBBLES] ?: "[]"
+    }
+
+    override suspend fun setLastFmApiKey(key: String) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[LASTFM_API_KEY] = key
+            }
+        }
+    }
+
+    override suspend fun setLastFmApiSecret(secret: String) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[LASTFM_API_SECRET] = secret
+            }
+        }
+    }
+
+    override suspend fun setLastFmSession(sessionKey: String, username: String) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[LASTFM_SESSION_KEY] = sessionKey
+                settings[LASTFM_USERNAME] = username
+            }
+        }
+    }
+
+    override suspend fun clearLastFmSession() {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[LASTFM_SESSION_KEY] = ""
+                settings[LASTFM_USERNAME] = ""
+            }
+        }
+    }
+
+    override suspend fun setLastFmScrobbleEnabled(enabled: Boolean) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[LASTFM_SCROBBLE_ENABLED] = if (enabled) TRUE else FALSE
+            }
+        }
+    }
+
+    override suspend fun setLastFmNowPlayingEnabled(enabled: Boolean) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[LASTFM_NOW_PLAYING_ENABLED] = if (enabled) TRUE else FALSE
+            }
+        }
+    }
+
+    override suspend fun setLastFmPendingScrobbles(json: String) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[LASTFM_PENDING_SCROBBLES] = json
+            }
+        }
+    }
+
+    // JioSaavn settings
+    override val jioSaavnEnabled: Flow<String> = settingsDataStore.data.map { preferences ->
+        preferences[JIOSAAVN_ENABLED] ?: FALSE
+    }
+
+    override val jioSaavnQuality: Flow<String> = settingsDataStore.data.map { preferences ->
+        preferences[JIOSAAVN_QUALITY] ?: "320kbps"
+    }
+
+    override suspend fun setJioSaavnEnabled(enabled: Boolean) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[JIOSAAVN_ENABLED] = if (enabled) TRUE else FALSE
+            }
+        }
+    }
+
+    override suspend fun setJioSaavnQuality(quality: String) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[JIOSAAVN_QUALITY] = quality
+            }
+        }
+    }
+
     companion object Settings {
         val APP_VERSION = stringPreferencesKey("app_version")
         val COOKIE = stringPreferencesKey("cookie")
@@ -1313,6 +1425,19 @@ internal class DataStoreManagerImpl(
 
         val DISCORD_TOKEN = stringPreferencesKey("discord_token")
         val RICH_PRESENCE = stringPreferencesKey("rich_presence")
+
+        // Last.fm
+        val LASTFM_API_KEY = stringPreferencesKey("lastfm_api_key")
+        val LASTFM_API_SECRET = stringPreferencesKey("lastfm_api_secret")
+        val LASTFM_SESSION_KEY = stringPreferencesKey("lastfm_session_key")
+        val LASTFM_USERNAME = stringPreferencesKey("lastfm_username")
+        val LASTFM_SCROBBLE_ENABLED = stringPreferencesKey("lastfm_scrobble_enabled")
+        val LASTFM_NOW_PLAYING_ENABLED = stringPreferencesKey("lastfm_now_playing_enabled")
+        val LASTFM_PENDING_SCROBBLES = stringPreferencesKey("lastfm_pending_scrobbles")
+
+        // JioSaavn
+        val JIOSAAVN_ENABLED = stringPreferencesKey("jiosaavn_enabled")
+        val JIOSAAVN_QUALITY = stringPreferencesKey("jiosaavn_quality")
     }
 }
 

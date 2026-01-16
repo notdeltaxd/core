@@ -65,6 +65,8 @@ import com.maxrave.media3.service.SimpleMediaService
 import com.maxrave.media3.service.callback.SimpleMediaSessionCallback
 import com.maxrave.media3.service.download.DownloadUtils
 import com.maxrave.media3.service.mediasourcefactory.MergingMediaSourceFactory
+import com.maxrave.media3.player.DualPlayerEngine
+import com.maxrave.media3.player.TransitionController
 import com.maxrave.media3.utils.CoilBitmapLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -213,6 +215,18 @@ private val mediaServiceModule =
                 playerCache = get(named(PLAYER_CACHE)),
                 downloadCache = get(named(DOWNLOAD_CACHE)),
                 canvasCache = get(named(CANVAS_CACHE)),
+            )
+        }
+
+        // Crossfade components
+        single<DualPlayerEngine>(createdAtStart = false) {
+            DualPlayerEngine(androidContext())
+        }
+
+        single<TransitionController>(createdAtStart = false) {
+            TransitionController(
+                engine = get(),
+                dataStoreManager = get(),
             )
         }
     }

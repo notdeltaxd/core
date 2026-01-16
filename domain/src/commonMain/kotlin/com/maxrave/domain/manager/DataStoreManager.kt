@@ -299,6 +299,30 @@ interface DataStoreManager {
 
     suspend fun setRichPresenceEnabled(enabled: Boolean)
 
+    // Last.fm settings
+    val lastFmApiKey: Flow<String>
+    val lastFmApiSecret: Flow<String>
+    val lastFmSessionKey: Flow<String>
+    val lastFmUsername: Flow<String>
+    val lastFmScrobbleEnabled: Flow<String>
+    val lastFmNowPlayingEnabled: Flow<String>
+    val lastFmPendingScrobbles: Flow<String>
+
+    suspend fun setLastFmApiKey(key: String)
+    suspend fun setLastFmApiSecret(secret: String)
+    suspend fun setLastFmSession(sessionKey: String, username: String)
+    suspend fun clearLastFmSession()
+    suspend fun setLastFmScrobbleEnabled(enabled: Boolean)
+    suspend fun setLastFmNowPlayingEnabled(enabled: Boolean)
+    suspend fun setLastFmPendingScrobbles(json: String)
+
+    // JioSaavn settings
+    val jioSaavnEnabled: Flow<String>
+    val jioSaavnQuality: Flow<String>
+
+    suspend fun setJioSaavnEnabled(enabled: Boolean)
+    suspend fun setJioSaavnQuality(quality: String)
+
     enum class ProxyType {
         PROXY_TYPE_HTTP,
         PROXY_TYPE_SOCKS,
