@@ -71,6 +71,7 @@ kotlin {
                 implementation(projects.spotify)
                 implementation(projects.kotlinYtmusicScraper)
                 implementation(projects.kizzy)
+                implementation(projects.ktorExt)
 
                 implementation(libs.kotlin.stdlib)
                 // Add KMP dependencies here
@@ -87,6 +88,12 @@ kotlin {
 
                 // Koin
                 implementation(libs.koin.core)
+
+                // Ktor for HTTP client (JioSaavn, Last.fm APIs)
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.encoding)
+                implementation(libs.ktor.client.content.negotiation)
+                implementation(libs.ktor.serialization.kotlinx.json)
             }
         }
 
