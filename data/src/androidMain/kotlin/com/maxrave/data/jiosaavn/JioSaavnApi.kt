@@ -195,6 +195,75 @@ class JioSaavnApi(
         }
     }
 
+    /**
+     * Get recommendations based on a song ID.
+     * Creates a radio station and fetches similar tracks.
+     */
+    suspend fun getRecommendations(songId: String, limit: Int = 10): Result<List<JioSaavnSong>> {
+        return try {
+            // First, get the station ID
+            val stationId = getStation(songId)
+            if (stationId.isNullOrBlank()) {
+                return Result.failure(Exception("Failed to create station"))
+            }
+
+            // Fetch recommendations from the station
+            val response = httpClient.get(API_URL) {
+                parameter("__call", "webradio.getSong")
+                parameter("api_version", "4")
+                parameter("_format", "json")
+                parameter("_marker", "0")
+                parameter("ctx", "android")
+                parameter("stationid", stationId)
+                parameter("k", limit)
+            }
+
+            val jsonResponse = json.parseToJsonElement(response.body<String>()).jsonObject
+            
+            val songs = mutableListOf<JioSaavnSong>()
+            for ((key, value) in jsonResponse) {
+                try {
+                    val songData = value.jsonObject["song"]?.jsonObject
+                    if (songData != null) {
+                        songs.add(formatSong(songData))
+                    }
+                } catch (e: Exception) {
+                    // Skip invalid entries
+                }
+            }
+
+            Result.success(songs)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Creates a radio station based on a song identifier and returns the station ID.
+     * Used internally for fetching recommendations.
+     */
+    private suspend fun getStation(songId: String): String? {
+        return try {
+            // Encode the song ID as JSON array
+            val encodedSongId = "[\"${java.net.URLEncoder.encode(songId, "UTF-8")}\"]"
+            
+            val response = httpClient.get(API_URL) {
+                parameter("__call", "webradio.createEntityStation")
+                parameter("api_version", "4")
+                parameter("_format", "json")
+                parameter("_marker", "0")
+                parameter("ctx", "android")
+                parameter("entity_id", encodedSongId)
+                parameter("entity_type", "queue")
+            }
+
+            val jsonResponse = json.parseToJsonElement(response.body<String>()).jsonObject
+            jsonResponse["stationid"]?.jsonPrimitive?.content
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     // --- Formatting Functions ---
 
     private fun formatSong(data: JsonObject): JioSaavnSong {
